@@ -6,7 +6,7 @@ import {
 } from "@/app/lib/web3-constants";
 import { useWeb3React } from "@web3-react/core";
 import axios from "axios";
-import { Contract } from "ethers";
+import { Contract, ethers } from "ethers";
 import { useEffect, useState } from "react";
 import AccountManager from "../../abi/vanna/v1/out/AccountManager.sol/AccountManager.json";
 import LiquidityPool from "../../abi/vanna/v1/out/LiquidityPool.sol/LiquidityPool.json";
@@ -34,11 +34,13 @@ import {
 } from "@/app/lib/helper";
 import Loader from "../components/loader";
 import Notification from "../components/notification";
+import { useAccount, useWalletClient } from "wagmi";
 
 const PositionFetching: React.FC<PositionSectionProps> = ({ dataFetching }) =>
   // closePosition: (arg0: number, arg1: number, arg2: number, arg3: any) => void
   {
-    const { account, library } = useWeb3React();
+    const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
     const { currentNetwork } = useNetwork();
     const [notifications, setNotifications] = useState<
       Array<{ id: number; type: NotificationType; message: string }>
@@ -56,11 +58,12 @@ const PositionFetching: React.FC<PositionSectionProps> = ({ dataFetching }) =>
     const accountCheck = async () => {
       if (
         localStorage.getItem("isWalletConnected") === "true" &&
-        account &&
-        currentNetwork
+        address &&
+        currentNetwork && walletClient
       ) {
         try {
-          const signer = await library?.getSigner();
+          const provider = new ethers.providers.Web3Provider(walletClient as any);
+          const signer = provider.getSigner();
 
           let regitstryContract;
           if (currentNetwork.id === ARBITRUM_NETWORK) {
@@ -84,7 +87,7 @@ const PositionFetching: React.FC<PositionSectionProps> = ({ dataFetching }) =>
           }
           if (regitstryContract) {
             const accountsArray = await regitstryContract.accountsOwnedBy(
-              account
+              address
             );
             let tempAccount;
 
@@ -109,7 +112,7 @@ const PositionFetching: React.FC<PositionSectionProps> = ({ dataFetching }) =>
 
     useEffect(() => {
       accountCheck();
-    }, [account, library, currentNetwork]);
+    }, [address, walletClient, currentNetwork]);
 
     useEffect(() => {
       // getTokenBalance();
@@ -176,13 +179,14 @@ const PositionFetching: React.FC<PositionSectionProps> = ({ dataFetching }) =>
     };
 
     const fetchPositions = async (account?: { toString: () => string }) => {
-      if (!currentNetwork) return;
+      if (!currentNetwork || !walletClient || !address) return;
 
       setLoading(true);
       if (account) {
         if (currentNetwork.id === ARBITRUM_NETWORK) {
           const renderedRows: MarketPosition[] = [];
-          const signer = await library?.getSigner();
+          const provider = new ethers.providers.Web3Provider(walletClient as any);
+          const signer = provider.getSigner();
           const liquidityPoolContract = new Contract(
             arbAddressList.muxLiquidityPoolAddress,
             LiquidityPool.abi,
@@ -270,7 +274,8 @@ const PositionFetching: React.FC<PositionSectionProps> = ({ dataFetching }) =>
           // return price;
         } else if (currentNetwork.id === OPTIMISM_NETWORK) {
           const renderedRows: MarketPosition[] = [];
-          const signer = await library?.getSigner();
+          const provider = new ethers.providers.Web3Provider(walletClient as any);
+          const signer = provider.getSigner();
 
           const OptimismFetchPositionContract = new Contract(
             opAddressList.optimismFetchPositionContractAddress,
@@ -396,7 +401,7 @@ const PositionFetching: React.FC<PositionSectionProps> = ({ dataFetching }) =>
     ) => {
       setLoading(true);
       try {
-        if (!activeAccount) return;
+        if (!activeAccount || !walletClient || !address) return;
 
         const subAccountId =
           activeAccount.toString() +
@@ -440,7 +445,8 @@ const PositionFetching: React.FC<PositionSectionProps> = ({ dataFetching }) =>
           positionOrderExtras,
         ]);
 
-        const signer = await library?.getSigner();
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
 
         const accountManagerContract = new Contract(
           arbAddressList.accountManagerContractAddress,
@@ -470,8 +476,11 @@ const PositionFetching: React.FC<PositionSectionProps> = ({ dataFetching }) =>
     // open short : https://optimistic.etherscan.io/tx/0xfeda6d5bc67be178a0e695dba37f3ba682db664b6eaf33f5110475cd19f30cb5
     const closePositionOp = async () => {
       setLoading(true);
+      if (!activeAccount || !walletClient || !address) return;
       try {
-        const signer = await library?.getSigner();
+
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
 
         const accountManagerOpContract = new Contract(
           opAddressList.accountManagerContractAddress,

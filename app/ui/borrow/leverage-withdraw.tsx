@@ -7,8 +7,8 @@ import clsx from "clsx";
 import Tooltip from "../components/tooltip";
 import Slider from "./slider";
 import TokenDropdown from "../components/token-dropdown";
-import { Contract } from "ethers";
-import { useWeb3React } from "@web3-react/core";
+import { Contract, ethers } from "ethers";
+import { useAccount, useWalletClient } from "wagmi";
 import {
   arbAddressList,
   arbTokensAddress,
@@ -46,7 +46,8 @@ import { formatUSD } from "@/app/lib/number-format-helper";
 import Notification from "../components/notification";
 
 const LevrageWithdraw = () => {
-  const { account, library } = useWeb3React();
+  const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { currentNetwork } = useNetwork();
   const [notifications, setNotifications] = useState<
     Array<{ id: number; type: NotificationType; message: string }>
@@ -181,18 +182,18 @@ const LevrageWithdraw = () => {
               ? "Deposit & Borrow"
               : "Approve - Deposit & Borrow"
             : borrowAmount !== "" && Number(borrowAmount) > 0
-            ? "Borrow"
-            : tokenName === "WETH"
-            ? "Deposit"
-            : "Approve - Deposit"
+              ? "Borrow"
+              : tokenName === "WETH"
+                ? "Deposit"
+                : "Approve - Deposit"
           : depositAmount !== "" &&
             borrowAmount !== "" &&
             Number(borrowAmount) > 0 &&
             Number(depositAmount) > 0
-          ? "Repay & Withdraw"
-          : borrowAmount !== "" && Number(borrowAmount) > 0
-          ? "Withdraw"
-          : "Repay"
+            ? "Repay & Withdraw"
+            : borrowAmount !== "" && Number(borrowAmount) > 0
+              ? "Withdraw"
+              : "Repay"
       );
       setDisableBtn(false);
     }
@@ -209,11 +210,14 @@ const LevrageWithdraw = () => {
   const accountCheck = async () => {
     if (
       localStorage.getItem("isWalletConnected") === "true" &&
-      account &&
-      currentNetwork
+      address &&
+      currentNetwork &&
+      walletClient
     ) {
       try {
-        const signer = await library?.getSigner();
+        // Create ethers provider and signer from walletClient
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
 
         let regitstryContract;
         if (currentNetwork.id === ARBITRUM_NETWORK) {
@@ -237,7 +241,7 @@ const LevrageWithdraw = () => {
         }
         if (regitstryContract) {
           const accountsArray = await regitstryContract.accountsOwnedBy(
-            account
+            address
           );
           let tempAccount;
           if (accountsArray.length > 0) {
@@ -259,14 +263,17 @@ const LevrageWithdraw = () => {
     try {
       setDepositBalance(0);
       setBorrowBalance(0);
-      if (account && currentNetwork) {
-        const signer = await library?.getSigner();
+      if (address && currentNetwork && walletClient) {
+        // Create ethers provider and signer from walletClient
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
+
         let depositBalance;
 
         if (isLeverage) {
           if (depositToken?.name === undefined) return;
           if (depositToken?.name == "ETH") {
-            depositBalance = await library?.getBalance(account);
+            depositBalance = await provider.getBalance(address);
           } else {
             let contract;
             if (currentNetwork.id === ARBITRUM_NETWORK) {
@@ -290,7 +297,7 @@ const LevrageWithdraw = () => {
             }
 
             if (contract) {
-              depositBalance = await contract.balanceOf(account);
+              depositBalance = await contract.balanceOf(address);
             }
           }
 
@@ -313,9 +320,12 @@ const LevrageWithdraw = () => {
   };
 
   const fetchRepayBalance = async () => {
-    if (!currentNetwork) return;
+    if (!currentNetwork || !walletClient || !activeAccount) return;
 
-    const signer = await library?.getSigner();
+    // Create ethers provider and signer from walletClient
+    const provider = new ethers.providers.Web3Provider(walletClient as any);
+    const signer = provider.getSigner();
+
     if (currentNetwork.id === ARBITRUM_NETWORK) {
     } else if (currentNetwork.id === OPTIMISM_NETWORK) {
       const vEtherContract = new Contract(
@@ -344,18 +354,18 @@ const LevrageWithdraw = () => {
         signer
       );
 
-      let accountBalance = await library?.getBalance(activeAccount);
-      accountBalance = accountBalance / 1e18;
+      let accountBalance = await provider.getBalance(activeAccount);
+      accountBalance = accountBalance.div(1e18);
       let borrowedBalance = await vEtherContract.callStatic.getBorrowBalance(
         activeAccount
       );
-      borrowedBalance = borrowedBalance / 1e18;
+      borrowedBalance = borrowedBalance.div(1e18);
 
       let repayBalance;
       if (depositToken?.name == "ETH") {
         repayBalance =
-          (await vEtherContract.callStatic.getBorrowBalance(activeAccount)) /
-          1e18;
+          (await vEtherContract.callStatic.getBorrowBalance(activeAccount))
+            .div(1e18);
       } else if (depositToken?.name == "WBTC") {
         repayBalance = await vWbtcContract.callStatic.getBorrowBalance(
           activeAccount
@@ -364,7 +374,7 @@ const LevrageWithdraw = () => {
         repayBalance = await vUsdcContract.callStatic.getBorrowBalance(
           activeAccount
         );
-        repayBalance = repayBalance / 1e6;
+        repayBalance = repayBalance.div(1e6);
       } else if (depositToken?.name == "USDT") {
         repayBalance = await vUsdtContract.callStatic.getBorrowBalance(
           activeAccount
@@ -380,9 +390,12 @@ const LevrageWithdraw = () => {
   };
 
   const fetchWithdrawBalance = async () => {
-    if (!currentNetwork) return;
+    if (!currentNetwork || !walletClient) return;
 
-    const signer = await library?.getSigner();
+    // Create ethers provider and signer from walletClient
+    const provider = new ethers.providers.Web3Provider(walletClient as any);
+    const signer = provider.getSigner();
+
     if (currentNetwork.id === ARBITRUM_NETWORK) {
     } else if (currentNetwork.id === OPTIMISM_NETWORK) {
       const daiContract = new Contract(
@@ -550,7 +563,7 @@ const LevrageWithdraw = () => {
     accountCheck();
     getTokenBalance();
     calc();
-  }, [account, activeAccount, currentNetwork, isLeverage]);
+  }, [address, activeAccount, currentNetwork, isLeverage]);
 
   useEffect(() => {
     getTokenBalance();
@@ -566,7 +579,12 @@ const LevrageWithdraw = () => {
   }, [leverageValue, borrowAmount, borrowToken]);
 
   const calc = async () => {
-    const signer = await library?.getSigner();
+    if (!walletClient) return;
+
+    // Create ethers provider and signer from walletClient
+    const provider = new ethers.providers.Web3Provider(walletClient as any);
+    const signer = provider.getSigner();
+
     const val = getPriceFromAssetsArray(depositToken.name);
     if (depositAmount !== "") {
       setExpected(Number(depositAmount) * val);
@@ -737,8 +755,11 @@ const LevrageWithdraw = () => {
   };
 
   const deposit = async () => {
-    if (!currentNetwork) return;
-    const signer = await library?.getSigner();
+    if (!currentNetwork || !walletClient) return;
+
+    // Create ethers provider and signer from walletClient
+    const provider = new ethers.providers.Web3Provider(walletClient as any);
+    const signer = provider.getSigner();
 
     let accountManagerContract;
 
@@ -772,7 +793,7 @@ const LevrageWithdraw = () => {
         );
         // need to add check that is already have allowance or not
         const allowance = await erc20Contract.allowance(
-          account,
+          address,
           arbAddressList.accountManagerContractAddress
         );
         if (allowance < Number(depositAmount)) {
@@ -797,7 +818,7 @@ const LevrageWithdraw = () => {
           signer
         );
         const allowance = await erc20Contract.allowance(
-          account,
+          address,
           arbAddressList.accountManagerContractAddress
         );
 
@@ -847,7 +868,7 @@ const LevrageWithdraw = () => {
 
         const allowance = formatUnits(
           await erc20Contract.allowance(
-            account,
+            address,
             opAddressList.accountManagerContractAddress
           ),
           6
@@ -874,7 +895,7 @@ const LevrageWithdraw = () => {
           signer
         );
         const allowance = await erc20Contract.allowance(
-          account,
+          address,
           opAddressList.accountManagerContractAddress
         );
 
@@ -923,7 +944,7 @@ const LevrageWithdraw = () => {
         );
         // need to add check that is already have allowance or not
         const allowance = await erc20Contract.allowance(
-          account,
+          address,
           baseAddressList.accountManagerContractAddress
         );
         if (allowance < Number(depositAmount)) {
@@ -948,7 +969,7 @@ const LevrageWithdraw = () => {
           signer
         );
         const allowance = await erc20Contract.allowance(
-          account,
+          address,
           baseAddressList.accountManagerContractAddress
         );
 
@@ -972,8 +993,12 @@ const LevrageWithdraw = () => {
   };
 
   const withdraw = async () => {
-    if (!currentNetwork) return;
-    const signer = await library?.getSigner();
+    if (!currentNetwork || !walletClient) return;
+
+    // Create ethers provider and signer from walletClient
+    const provider = new ethers.providers.Web3Provider(walletClient as any);
+    const signer = provider.getSigner();
+
     let accountManagerContract;
     if (currentNetwork.id === ARBITRUM_NETWORK) {
       accountManagerContract = new Contract(
@@ -1064,8 +1089,12 @@ const LevrageWithdraw = () => {
   };
 
   const borrow = async () => {
-    if (!currentNetwork) return;
-    const signer = await library?.getSigner();
+    if (!currentNetwork || !walletClient) return;
+
+    // Create ethers provider and signer from walletClient
+    const provider = new ethers.providers.Web3Provider(walletClient as any);
+    const signer = provider.getSigner();
+
     let accountManagerContract;
     if (currentNetwork.id === ARBITRUM_NETWORK) {
       accountManagerContract = new Contract(
@@ -1137,8 +1166,12 @@ const LevrageWithdraw = () => {
   };
 
   const repay = async () => {
-    if (!currentNetwork) return;
-    const signer = await library?.getSigner();
+    if (!currentNetwork || !walletClient) return;
+
+    // Create ethers provider and signer from walletClient
+    const provider = new ethers.providers.Web3Provider(walletClient as any);
+    const signer = provider.getSigner();
+
     let accountManagerContract;
     if (currentNetwork.id === ARBITRUM_NETWORK) {
       accountManagerContract = new Contract(
@@ -1285,8 +1318,8 @@ const LevrageWithdraw = () => {
                 <div>
                   {depositBalance
                     ? ceilWithPrecision(String(depositBalance), 5) +
-                      " " +
-                      depositToken?.name
+                    " " +
+                    depositToken?.name
                     : depositBalance}{" "}
                 </div>
               </div>
@@ -1334,8 +1367,8 @@ const LevrageWithdraw = () => {
                   <div className="mr-2">
                     {borrowBalance
                       ? ceilWithPrecision(String(borrowBalance), 5) +
-                        " " +
-                        borrowToken?.name
+                      " " +
+                      borrowToken?.name
                       : borrowBalance}{" "}
                   </div>
                   <button
@@ -1373,17 +1406,17 @@ const LevrageWithdraw = () => {
               </div>
             </div>
 
-            {!account && (
+            {!address && (
               <button className="w-full bg-neutral-500 text-white py-3 rounded-2xl font-semibold text-xl mb-6">
                 Connect Wallet
               </button>
             )}
-            {account && loading && (
+            {address && loading && (
               <button className="w-full bg-purple py-3 rounded-2xl font-semibold text-xl mb-6 flex justify-center">
                 <Loader />
               </button>
             )}
-            {account && activeAccount === undefined && !loading && (
+            {address && activeAccount === undefined && !loading && (
               <button
                 className="w-full bg-purple text-white py-3 rounded-2xl font-semibold text-xl mb-6"
                 onClick={() => setIsModalOpen(true)}
@@ -1391,7 +1424,7 @@ const LevrageWithdraw = () => {
                 Create your Margin Account
               </button>
             )}
-            {account &&
+            {address &&
               activeAccount !== undefined &&
               !loading &&
               disableBtn && (
@@ -1399,7 +1432,7 @@ const LevrageWithdraw = () => {
                   {btnValue}
                 </button>
               )}
-            {account &&
+            {address &&
               activeAccount !== undefined &&
               !loading &&
               !disableBtn && (

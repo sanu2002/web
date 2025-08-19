@@ -8,6 +8,7 @@ import NavbarButtons from "./navbar-button";
 import { List, SunDim, X } from "@phosphor-icons/react";
 import BurgerMenu from "./burger-menu";
 import { useDarkMode } from "./use-dark-mode";
+import { MagicLinkNavbarButton } from "./magic-link-navbar-button";
 
 export default function Navbar() {
   const [isBurgerMenuOpen, setIsBurgerMenuOpen] = useState(false);
@@ -47,7 +48,7 @@ export default function Navbar() {
         </div>
       </div>
       <div className="hidden lg:flex lg:flex-none self-center py-1">
-        <NavbarButtons />
+        <MagicLinkNavbarButton />
       </div>
       {isBurgerMenuOpen && <BurgerMenu onClose={toggleBurgerMenu} />}
     </nav>

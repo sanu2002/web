@@ -13,21 +13,21 @@ import {
   codeToAsset,
   opAddressList,
 } from "@/app/lib/web3-constants";
-import { Contract } from "ethers";
-import { useNetwork } from "@/app/context/network-context";
-import { useWeb3React } from "@web3-react/core";
+import { Contract, ethers } from "ethers";
+import { useAccount, useWalletClient } from "wagmi";
 import ClearingHouse from "../../abi/vanna/v1/out/ClearingHouse.sol/ClearingHouse.json";
 import LiquidityPool from "../../abi/vanna/v1/out/LiquidityPool.sol/LiquidityPool.json";
 import OptimismFetchPosition from "../../abi/vanna/v1/out/OptimismFetchPosition.sol/OptimismFetchPosition.json";
 import Registry from "../../abi/vanna/v1/out/Registry.sol/Registry.json";
 import axios from "axios";
 import Loader from "../components/loader";
+import { useNetwork } from "@/app/context/network-context";
 
 const FutureTab: React.FC = () => {
-  const { account, library } = useWeb3React();
-  const { currentNetwork } = useNetwork();
+  const { address, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const [loading, setLoading] = useState(false);
-
+  const { currentNetwork } = useNetwork();
   const [assetsPrice, setAssetsPrice] = useState([]);
   const [activeAccount, setActiveAccount] = useState<string | undefined>();
   const [isActive, setIsActive] = useState(false);
@@ -43,38 +43,53 @@ const FutureTab: React.FC = () => {
   const [profitLoss, setProfitLoss] = useState("");
   // const [profitLossPercentage, setProfitLossPercentage] = useState("");
 
+  // Helper function to get the appropriate address list based on current network
+  const getAddressList = () => {
+    if (chainId === 42161) return arbAddressList; // Arbitrum
+    if (chainId === 10) return opAddressList; // Optimism
+    if (chainId === 8453) return baseAddressList; // Base
+    return baseAddressList; // Default to Base
+  };
+
+  // Helper function to create a provider from the wallet client
+  const createProvider = () => {
+    if (!walletClient) return null;
+    return new ethers.providers.Web3Provider(walletClient as any);
+  };
+
+  // Helper function to create a signer from the wallet client
+  const createSigner = () => {
+    const provider = createProvider();
+    if (!provider) return null;
+    return provider.getSigner();
+  };
+
   const accountCheck = async () => {
     if (
       localStorage.getItem("isWalletConnected") === "true" &&
-      account &&
-      currentNetwork
+      currentNetwork &&
+      address &&
+      walletClient
     ) {
       try {
-        const signer = await library?.getSigner();
-
-        let regitstryContract;
-        if (currentNetwork.id === ARBITRUM_NETWORK) {
-          regitstryContract = new Contract(
-            arbAddressList.registryContractAddress,
-            Registry.abi,
-            signer
-          );
-        } else if (currentNetwork.id === OPTIMISM_NETWORK) {
-          regitstryContract = new Contract(
-            opAddressList.registryContractAddress,
-            Registry.abi,
-            signer
-          );
-        } else if (currentNetwork.id === BASE_NETWORK) {
-          regitstryContract = new Contract(
-            baseAddressList.registryContractAddress,
-            Registry.abi,
-            signer
-          );
+        const provider = createProvider();
+        const signer = createSigner();
+        
+        if (!provider || !signer) {
+          console.error("Failed to create provider or signer");
+          return;
         }
+
+        const addressList = getAddressList();
+        const regitstryContract = new Contract(
+          addressList.registryContractAddress,
+          Registry.abi,
+          signer
+        );
+
         if (regitstryContract) {
           const accountsArray = await regitstryContract.accountsOwnedBy(
-            account
+            address
           );
           let tempAccount;
 
@@ -107,7 +122,7 @@ const FutureTab: React.FC = () => {
 
   useEffect(() => {
     accountCheck();
-  }, [account, library, currentNetwork]);
+  }, [address, walletClient, chainId]);
 
   useEffect(() => {
     fetchPositions(activeAccount);
@@ -175,7 +190,7 @@ const FutureTab: React.FC = () => {
   const fetchPositions = async (account?: { toString: () => string }) => {
     setLoading(true);
 
-    if (currentNetwork && account) {
+    if (account) {
       const row: MarketPosition = {
         market: "ETH",
         isLong: false,
@@ -189,9 +204,12 @@ const FutureTab: React.FC = () => {
         actions: <div></div>, // or some default JSX
       };
 
-      if (currentNetwork.id === ARBITRUM_NETWORK) {
+      const currentChainId = chainId;
+      if (currentChainId === 42161) { // Arbitrum
         row["market"] = "ETH/USD";
-        const signer = await library?.getSigner();
+        const signer = createSigner();
+        if (!signer) return;
+        
         const liquidityPoolContract = new Contract(
           arbAddressList.muxLiquidityPoolAddress,
           LiquidityPool.abi,
@@ -245,8 +263,9 @@ const FutureTab: React.FC = () => {
           }
           // }
         }
-      } else if (currentNetwork.id === OPTIMISM_NETWORK) {
-        const signer = await library?.getSigner();
+      } else if (currentChainId === 10) { // Optimism
+        const signer = createSigner();
+        if (!signer) return;
 
         const OptimismFetchPositionContract = new Contract(
           opAddressList.optimismFetchPositionContractAddress,
@@ -295,7 +314,8 @@ const FutureTab: React.FC = () => {
           row["liqPrice"] = String(netValue + Number(row["liqPrice"]));
           row["pnlAndRow"] = String(pnl + Number(row["pnlAndRow"]));
         }
-      } else if (currentNetwork.id === BASE_NETWORK) {
+      } else if (currentChainId === 8453) { // Base
+        // Add Base network support as needed
       }
 
       setValues(row);

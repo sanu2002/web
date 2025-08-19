@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import { X } from "@phosphor-icons/react";
-import { Contract } from "ethers";
+import { Contract, ethers } from "ethers";
 import AccountManager from "../../abi/vanna/v1/out/AccountManager.sol/AccountManager.json";
 import AccountManagerop from "../../abi/vanna/v1/out/AccountManager-op.sol/AccountManager-op.json";
 import Registry from "../../abi/vanna/v1/out/Registry.sol/Registry.json";
-import { useWeb3React } from "@web3-react/core";
+import { useAccount, useWalletClient } from "wagmi";
 import { sleep } from "@/app/lib/helper";
 import {
   arbAddressList,
@@ -14,69 +14,77 @@ import {
   opAddressList,
 } from "@/app/lib/web3-constants";
 import Loader from "./loader";
-import {
-  ARBITRUM_NETWORK,
-  BASE_NETWORK,
-  OPTIMISM_NETWORK,
-} from "@/app/lib/constants";
-import { useNetwork } from "@/app/context/network-context";
+
+
 
 const CreateSmartAccountModal: React.FC<CreateSmartAccountModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { account, library } = useWeb3React();
-  const { currentNetwork } = useNetwork();
+  const { address, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const [loading, setLoading] = useState(false);
+
+  // Helper function to get the appropriate address list based on current network
+  const getAddressList = () => {
+    if (chainId === 42161) return arbAddressList; // Arbitrum
+    if (chainId === 10) return opAddressList; // Optimism
+    if (chainId === 8453) return baseAddressList; // Base
+    return baseAddressList; // Default to Base
+  };
+
+  // Helper function to create a provider from the wallet client
+  const createProvider = () => {
+    if (!walletClient) return null;
+    return new ethers.providers.Web3Provider(walletClient as any);
+  };
+
+  // Helper function to create a signer from the wallet client
+  const createSigner = () => {
+    const provider = createProvider();
+    if (!provider) return null;
+    return provider.getSigner();
+  };
 
   if (!isOpen) return null;
 
   const handleCreateAccount = async () => {
-    if (!currentNetwork) return;
+    if (!walletClient) return;
     setLoading(true);
     try {
-      const signer = await library?.getSigner();
+      const provider = createProvider();
+      const signer = createSigner();
+      
+      if (!provider || !signer) {
+        console.error("Failed to create provider or signer");
+        return;
+      }
 
+      const addressList = getAddressList();
+      const regitstryContract = new Contract(
+        addressList.registryContractAddress,
+        Registry.abi,
+        signer
+      );
+      
       let accountManagerContract;
-      let regitstryContract;
-      if (currentNetwork.id === ARBITRUM_NETWORK) {
-        regitstryContract = new Contract(
-          arbAddressList.registryContractAddress,
-          Registry.abi,
-          signer
-        );
+      if (chainId === 10) { // Optimism
         accountManagerContract = new Contract(
-          arbAddressList.accountManagerContractAddress,
-          AccountManager.abi,
-          signer
-        );
-      } else if (currentNetwork.id === OPTIMISM_NETWORK) {
-        regitstryContract = new Contract(
-          opAddressList.registryContractAddress,
-          Registry.abi,
-          signer
-        );
-        accountManagerContract = new Contract(
-          opAddressList.accountManagerContractAddress,
+          addressList.accountManagerContractAddress,
           AccountManagerop.abi,
           signer
         );
-      } else if (currentNetwork.id === BASE_NETWORK) {
-        regitstryContract = new Contract(
-          baseAddressList.registryContractAddress,
-          Registry.abi,
-          signer
-        );
+      } else {
         accountManagerContract = new Contract(
-          baseAddressList.accountManagerContractAddress,
+          addressList.accountManagerContractAddress,
           AccountManager.abi,
           signer
         );
       }
       if (regitstryContract && accountManagerContract) {
-        const accountsArray = await regitstryContract.accountsOwnedBy(account);
+        const accountsArray = await regitstryContract.accountsOwnedBy(address);
         if (accountsArray.length === 0) {
-          await accountManagerContract.openAccount(account, {
+          await accountManagerContract.openAccount(address, {
             gasLimit: 2300000,
           });
           await sleep(7000);

@@ -17,7 +17,7 @@ import Link from "next/link";
 
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { utils, Contract } from "ethers";
+import { utils, Contract, ethers } from "ethers";
 import { formatUnits } from "ethers/lib/utils";
 
 import VEther from "@/app/abi/vanna/v1/out/VEther.sol/VEther.json";
@@ -31,9 +31,11 @@ import DefaultRateModel from "@/app/abi/vanna/v1/out/DefaultRateModel.sol/Defaul
 import Multicall from "@/app/abi/vanna/v1/out/Multicall.sol/Multicall.json";
 import { ceilWithPrecision, check0xHex } from "@/app/lib/helper";
 import { SECS_PER_YEAR, FEES } from "@/app/lib/constants";
+import { useAccount, useWalletClient } from "wagmi";
 
 const PoolsTable = () => {
-  const { account, library } = useWeb3React();
+  const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { currentNetwork } = useNetwork();
 
   const dispatch = useDispatch();
@@ -43,7 +45,9 @@ const PoolsTable = () => {
 
   useEffect(() => {
     try {
-      if (account && currentNetwork) {
+      if (address && currentNetwork && walletClient) {
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
         if (currentNetwork.id === ARBITRUM_NETWORK) {
           const fetchValues = async () => {
             const iFaceEth = new utils.Interface(VEther.abi);
@@ -52,7 +56,7 @@ const PoolsTable = () => {
             const MCcontract = new Contract(
               arbAddressList.multicallAddress,
               Multicall.abi,
-              library
+              signer
             );
             const calldata = [];
             let tempData;
@@ -157,31 +161,31 @@ const PoolsTable = () => {
 
             //ETH
             tempData = utils.arrayify(
-              iFaceEth.encodeFunctionData("balanceOf", [account])
+              iFaceEth.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([arbAddressList.vEtherContractAddress, tempData]);
 
             //WBTC
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([arbAddressList.vWBTCContractAddress, tempData]);
 
             //USDC
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([arbAddressList.vUSDCContractAddress, tempData]);
 
             //USDT
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([arbAddressList.vUSDTContractAddress, tempData]);
 
             //DAI
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([arbAddressList.vDaiContractAddress, tempData]);
 
@@ -384,7 +388,7 @@ const PoolsTable = () => {
             const MCcontract = new Contract(
               opAddressList.multicallAddress,
               Multicall.abi,
-              library
+              signer
             );
             const calldata = [];
             let tempData;
@@ -487,31 +491,31 @@ const PoolsTable = () => {
 
             //ETH
             tempData = utils.arrayify(
-              iFaceEth.encodeFunctionData("balanceOf", [account])
+              iFaceEth.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([opAddressList.vEtherContractAddress, tempData]);
 
             //WBTC
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([opAddressList.vWBTCContractAddress, tempData]);
 
             //USDC
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([opAddressList.vUSDCContractAddress, tempData]);
 
             //USDT
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([opAddressList.vUSDTContractAddress, tempData]);
 
             //DAI
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([opAddressList.vDaiContractAddress, tempData]);
 
@@ -697,7 +701,7 @@ const PoolsTable = () => {
             const MCcontract = new Contract(
               baseAddressList.multicallAddress,
               Multicall.abi,
-              library
+              signer
             );
             const calldata = [];
             let tempData;
@@ -802,31 +806,31 @@ const PoolsTable = () => {
 
             //ETH
             tempData = utils.arrayify(
-              iFaceEth.encodeFunctionData("balanceOf", [account])
+              iFaceEth.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([baseAddressList.vEtherContractAddress, tempData]);
 
             //WBTC
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([baseAddressList.vWBTCContractAddress, tempData]);
 
             //USDC
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([baseAddressList.vUSDCContractAddress, tempData]);
 
             //USDT
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([baseAddressList.vUSDTContractAddress, tempData]);
 
             //DAI
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([baseAddressList.vDaiContractAddress, tempData]);
 
@@ -1028,7 +1032,7 @@ const PoolsTable = () => {
       console.error(error);
       setPools(poolsPlaceholder);
     }
-  }, [account, currentNetwork]);
+  }, [address, currentNetwork]);
 
   return (
     <div className="mt-4 overflow-x-auto">

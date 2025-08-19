@@ -11,8 +11,8 @@ import {
   getShortenedAddress,
   opAddressList,
 } from "@/app/lib/web3-constants";
-import { Contract } from "ethers";
-import { useWeb3React } from "@web3-react/core";
+import { Contract, ethers } from "ethers";
+import { useWalletClient } from "wagmi";
 import { useNetwork } from "@/app/context/network-context";
 import RiskEngine from "../../abi/vanna/v1/out/RiskEngine.sol/RiskEngine.json";
 import { useSelector } from "react-redux";
@@ -31,7 +31,7 @@ const AccountOverview: React.FC<AccountOverviewProps> = ({
   creditToken,
   activeAccount,
 }) => {
-  const { library } = useWeb3React();
+  const { data: walletClient } = useWalletClient();
   const { currentNetwork } = useNetwork();
 
   const pools = useSelector((state: RootState) => state.pools.poolsData);
@@ -67,11 +67,13 @@ const AccountOverview: React.FC<AccountOverviewProps> = ({
 
   useEffect(() => {
     const fetchValues = async () => {
-      if (!currentNetwork) return;
+      if (!currentNetwork || !walletClient) return;
       setLoading(true);
 
       try {
-        const signer = library?.getSigner();
+        // Create ethers provider and signer from walletClient
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
 
         let riskEngineContract;
         if (currentNetwork.id === ARBITRUM_NETWORK) {
@@ -115,7 +117,7 @@ const AccountOverview: React.FC<AccountOverviewProps> = ({
 
         const leverageUse =
           Number(borrowBalance / 1e16) /
-            (Number(balance / 1e16) - Number(borrowBalance / 1e16)) +
+          (Number(balance / 1e16) - Number(borrowBalance / 1e16)) +
           1;
 
         setAccountValue(formatUSD(String(balance), 4));
@@ -131,7 +133,7 @@ const AccountOverview: React.FC<AccountOverviewProps> = ({
     };
 
     fetchValues();
-  }, [activeAccount, currentNetwork]);
+  }, [activeAccount, currentNetwork, walletClient]);
 
   useEffect(() => {
     const poolValue = pools.find((pool) => pool.name === creditToken?.name);

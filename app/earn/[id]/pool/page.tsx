@@ -7,7 +7,7 @@ import PoolDetailTabMenu from "@/app/ui/earn/pool-detail-tab-menu";
 import SupplyWithdraw from "@/app/ui/earn/supply-withdraw";
 import { useNetwork } from "@/app/context/network-context";
 import { CaretLeft } from "@phosphor-icons/react";
-import { useWeb3React } from "@web3-react/core";
+import { useAccount, useWalletClient } from "wagmi";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -19,7 +19,7 @@ import {
   BASE_NETWORK,
   OPTIMISM_NETWORK,
 } from "@/app/lib/constants";
-import { Contract, utils } from "ethers";
+import { Contract, utils, ethers } from "ethers";
 
 import VEther from "../../../abi/vanna/v1/out/VEther.sol/VEther.json";
 import VToken from "../../../abi/vanna/v1/out/VToken.sol/VToken.json";
@@ -39,7 +39,8 @@ export default function Page({ params }: { params: { id: string } }) {
     const [pool, setPool] = useState(
       pools.find((pool) => pool.id === Number(id))
     );
-    const { account, library } = useWeb3React();
+    const { address, isConnected, chainId } = useAccount();
+    const { data: walletClient } = useWalletClient();
     const { currentNetwork } = useNetwork();
     const [utilizationRate, setUtilizationRate] = useState<string | undefined>(
       "-"
@@ -48,15 +49,19 @@ export default function Page({ params }: { params: { id: string } }) {
 
     useEffect(() => {
       try {
-        if (account && currentNetwork) {
+        if (address && currentNetwork && walletClient) {
           if (currentNetwork.id === ARBITRUM_NETWORK) {
             const fetchValues = async () => {
+              // Create ethers provider and signer from walletClient
+              const provider = new ethers.providers.Web3Provider(walletClient as any);
+              const signer = provider.getSigner();
+
               const iFaceEth = new utils.Interface(VEther.abi);
               const iFaceToken = new utils.Interface(VToken.abi);
               const MCcontract = new Contract(
                 arbAddressList.multicallAddress,
                 Multicall.abi,
-                library
+                signer
               );
               const calldata = [];
               let tempData;
@@ -141,7 +146,7 @@ export default function Page({ params }: { params: { id: string } }) {
               if (pool?.name === "WETH") {
                 utilizationRate = String(
                   (Number(formatUnits(ethTotalBorrow)) / Number(ethSupply)) *
-                    100
+                  100
                 );
                 const rate = ceilWithPrecision(utilizationRate);
                 setUtilizationRate(
@@ -153,7 +158,7 @@ export default function Page({ params }: { params: { id: string } }) {
                 // if(wbtcSupply = "0") return setUtilizationRate("0" + "%");
                 utilizationRate = String(
                   (Number(formatUnits(wbtcTotalBorrow)) / Number(wbtcSupply)) *
-                    100
+                  100
                 );
                 const rate = ceilWithPrecision(utilizationRate);
                 setUtilizationRate(
@@ -164,7 +169,7 @@ export default function Page({ params }: { params: { id: string } }) {
               if (pool?.name === "USDC") {
                 utilizationRate = String(
                   (Number(formatUnits(usdcTotalBorrow)) / Number(usdcSupply)) *
-                    100
+                  100
                 );
                 const rate = ceilWithPrecision(utilizationRate);
                 setUtilizationRate(
@@ -175,7 +180,7 @@ export default function Page({ params }: { params: { id: string } }) {
               if (pool?.name === "USDT") {
                 utilizationRate = String(
                   (Number(formatUnits(usdtTotalBorrow)) / Number(usdtSupply)) *
-                    100
+                  100
                 );
                 const rate = ceilWithPrecision(utilizationRate);
                 setUtilizationRate(
@@ -186,7 +191,7 @@ export default function Page({ params }: { params: { id: string } }) {
               if (pool?.name === "DAI") {
                 utilizationRate = String(
                   (Number(formatUnits(daiTotalBorrow)) / Number(daiSupply)) *
-                    100
+                  100
                 );
                 const rate = ceilWithPrecision(utilizationRate);
                 setUtilizationRate(
@@ -198,12 +203,16 @@ export default function Page({ params }: { params: { id: string } }) {
             fetchValues();
           } else if (currentNetwork.id === OPTIMISM_NETWORK) {
             const fetchValues = async () => {
+              // Create ethers provider and signer from walletClient
+              const provider = new ethers.providers.Web3Provider(walletClient as any);
+              const signer = provider.getSigner();
+
               const iFaceEth = new utils.Interface(VEther.abi);
               const iFaceToken = new utils.Interface(VToken.abi);
               const MCcontract = new Contract(
                 opAddressList.multicallAddress,
                 Multicall.abi,
-                library
+                signer
               );
               const calldata = [];
               let tempData;
@@ -253,7 +262,7 @@ export default function Page({ params }: { params: { id: string } }) {
               if (pool?.name === "WETH") {
                 utilazation = String(
                   parseFloat(ceilWithPrecision(formatUnits(ethTotalBorrow))) /
-                    parseFloat(String(pool?.supply))
+                  parseFloat(String(pool?.supply))
                 );
                 utilazation = Number(utilazation) * 100;
                 setUtilizationRate(ceilWithPrecision(String(utilazation)));
@@ -261,7 +270,7 @@ export default function Page({ params }: { params: { id: string } }) {
               } else if (pool?.name === "WBTC") {
                 utilazation = String(
                   parseFloat(ceilWithPrecision(formatUnits(wbtcTotalBorrow))) /
-                    parseFloat(String(pool?.supply))
+                  parseFloat(String(pool?.supply))
                 );
                 utilazation = Number(utilazation) * 100;
                 setUtilizationRate(ceilWithPrecision(String(utilazation)));
@@ -287,7 +296,7 @@ export default function Page({ params }: { params: { id: string } }) {
               } else if (pool?.name === "DAI") {
                 utilazation = String(
                   parseFloat(ceilWithPrecision(formatUnits(daiTotalBorrow))) /
-                    parseFloat(String(pool?.supply))
+                  parseFloat(String(pool?.supply))
                 );
                 utilazation = Number(utilazation) * 100;
                 setUtilizationRate(ceilWithPrecision(String(utilazation)));
@@ -297,12 +306,16 @@ export default function Page({ params }: { params: { id: string } }) {
             fetchValues();
           } else if (currentNetwork.id === BASE_NETWORK) {
             const fetchValues = async () => {
+              // Create ethers provider and signer from walletClient
+              const provider = new ethers.providers.Web3Provider(walletClient as any);
+              const signer = provider.getSigner();
+
               const iFaceEth = new utils.Interface(VEther.abi);
               const iFaceToken = new utils.Interface(VToken.abi);
               const MCcontract = new Contract(
                 baseAddressList.multicallAddress,
                 Multicall.abi,
-                library
+                signer
               );
               const calldata = [];
               let tempData;
@@ -353,7 +366,7 @@ export default function Page({ params }: { params: { id: string } }) {
                 setUtilizationRate(
                   String(
                     parseFloat(ethTotalBorrow?.toString()) /
-                      parseFloat(String(pool?.supply))
+                    parseFloat(String(pool?.supply))
                   )
                 );
                 setUniqueLP("5");
@@ -362,7 +375,7 @@ export default function Page({ params }: { params: { id: string } }) {
                 setUtilizationRate(
                   String(
                     parseFloat(wbtcTotalBorrow?.toString()) /
-                      parseFloat(String(pool?.supply))
+                    parseFloat(String(pool?.supply))
                   )
                 );
                 setUniqueLP("3");
@@ -371,7 +384,7 @@ export default function Page({ params }: { params: { id: string } }) {
                 setUtilizationRate(
                   String(
                     parseFloat(usdcTotalBorrow?.toString()) /
-                      parseFloat(String(pool?.supply))
+                    parseFloat(String(pool?.supply))
                   )
                 );
                 setUniqueLP("12");
@@ -380,7 +393,7 @@ export default function Page({ params }: { params: { id: string } }) {
                 setUtilizationRate(
                   String(
                     parseFloat(usdtTotalBorrow?.toString()) /
-                      parseFloat(String(pool?.supply))
+                    parseFloat(String(pool?.supply))
                   )
                 );
                 setUniqueLP("0");
@@ -389,7 +402,7 @@ export default function Page({ params }: { params: { id: string } }) {
                 setUtilizationRate(
                   String(
                     parseFloat(daiTotalBorrow?.toString()) /
-                      parseFloat(String(pool?.supply))
+                    parseFloat(String(pool?.supply))
                   )
                 );
                 setUniqueLP("0");
@@ -401,7 +414,7 @@ export default function Page({ params }: { params: { id: string } }) {
       } catch (error) {
         console.error(error);
       }
-    }, []);
+    }, [address, currentNetwork, walletClient]);
 
     if (!pool) {
       notFound();

@@ -4,14 +4,8 @@
 import { ArrowCircleUpRight } from "@phosphor-icons/react";
 import TradingInfoPanel from "./trading-info-panel";
 import { useEffect, useState } from "react";
-import { useWeb3React } from "@web3-react/core";
-import { useNetwork } from "@/app/context/network-context";
-import {
-  ARBITRUM_NETWORK,
-  OPTIMISM_NETWORK,
-  BASE_NETWORK,
-} from "@/app/lib/constants";
-import { Contract } from "ethers";
+import { useAccount, useWalletClient } from "wagmi";
+import { Contract, ethers } from "ethers";
 import {
   arbAddressList,
   opAddressList,
@@ -29,11 +23,13 @@ import axios from "axios";
 import { formatUSD } from "@/app/lib/number-format-helper";
 import Link from "next/link";
 import Loader from "../components/loader";
+import { useNetwork } from "@/app/context/network-context";
+import { ARBITRUM_NETWORK, BASE_NETWORK, OPTIMISM_NETWORK } from "@/app/lib/constants";
 
 const BorrowerDashboard = () => {
-  const { account, library } = useWeb3React();
+  const { address, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { currentNetwork } = useNetwork();
-
   const [activeAccount, setActiveAccount] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
 
@@ -50,38 +46,52 @@ const BorrowerDashboard = () => {
     string | undefined
   >();
 
+  // Helper function to get the appropriate address list based on current network
+  const getAddressList = () => {
+    if (chainId === 42161) return arbAddressList; // Arbitrum
+    if (chainId === 10) return opAddressList; // Optimism
+    if (chainId === 8453) return baseAddressList; // Base
+    return baseAddressList; // Default to Base
+  };
+
+  // Helper function to create a provider from the wallet client
+  const createProvider = () => {
+    if (!walletClient) return null;
+    return new ethers.providers.Web3Provider(walletClient as any);
+  };
+
+  // Helper function to create a signer from the wallet client
+  const createSigner = () => {
+    const provider = createProvider();
+    if (!provider) return null;
+    return provider.getSigner();
+  };
+
   const accountCheck = async () => {
     if (
-      localStorage.getItem("isWalletConnected") === "true" &&
-      account &&
-      currentNetwork
+      currentNetwork &&
+      address &&
+      walletClient
     ) {
       try {
-        const signer = await library?.getSigner();
-
-        let regitstryContract;
-        if (currentNetwork.id === ARBITRUM_NETWORK) {
-          regitstryContract = new Contract(
-            arbAddressList.registryContractAddress,
-            Registry.abi,
-            signer
-          );
-        } else if (currentNetwork.id === OPTIMISM_NETWORK) {
-          regitstryContract = new Contract(
-            opAddressList.registryContractAddress,
-            Registry.abi,
-            signer
-          );
-        } else if (currentNetwork.id === BASE_NETWORK) {
-          regitstryContract = new Contract(
-            baseAddressList.registryContractAddress,
-            Registry.abi,
-            signer
-          );
+        const provider = createProvider();
+        const signer = createSigner();
+        
+        if (!provider || !signer) {
+          console.error("Failed to create provider or signer");
+          return;
         }
+
+        const addressList = getAddressList();
+        const regitstryContract = new Contract(
+          addressList.registryContractAddress,
+          Registry.abi,
+          signer
+        );
+
         if (regitstryContract) {
           const accountsArray = await regitstryContract.accountsOwnedBy(
-            account
+            address
           );
           let tempAccount;
           if (accountsArray.length > 0) {
@@ -105,7 +115,7 @@ const BorrowerDashboard = () => {
 
   useEffect(() => {
     accountCheck();
-  }, [account, currentNetwork]);
+  }, [address, currentNetwork]);
 
   const getPriceFromAssetsArray = async (tokenSymbol: string) => {
     const rsp = await axios.get("https://app.mux.network/api/liquidityAsset", {
@@ -129,12 +139,14 @@ const BorrowerDashboard = () => {
 
   useEffect(() => {
     const fetchValues = async () => {
-      if (!currentNetwork || !activeAccount) return;
+      if (!currentNetwork || !activeAccount || !walletClient || !address) return;
 
       setLoading(true);
 
       try {
-        const signer = await library?.getSigner();
+        const provider = createProvider();
+        const signer = createSigner();
+        if(!provider || !signer) throw new Error("Failed to create provider or signer");
 
         let daiContract;
         let wethContract;
@@ -285,11 +297,11 @@ const BorrowerDashboard = () => {
           return;
         }
         // ETH
-        let accountBalance = await library?.getBalance(activeAccount);
+        let accountBalance = Number(ethers.utils.formatEther(await provider.getBalance(activeAccount)))
+        const waccountBalance = await wethContract.balanceOf(activeAccount)
 
-        const waccountBalance = await wethContract.balanceOf(activeAccount);
+        accountBalance = waccountBalance+accountBalance 
 
-        accountBalance = Number(accountBalance) + Number(waccountBalance);
 
         let borrowedBalance = await vEtherContract.callStatic.getBorrowBalance(
           activeAccount

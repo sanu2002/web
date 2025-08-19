@@ -21,7 +21,7 @@ import {
   formatStringToUnits,
   sleep,
 } from "@/app/lib/helper";
-import { BigNumber, Contract } from "ethers";
+import { BigNumber, Contract, ethers } from "ethers";
 import {
   arbAddressList,
   arbTokensAddress,
@@ -53,6 +53,7 @@ import LiquidityPool from "../../abi/vanna/v1/out/LiquidityPool.sol/LiquidityPoo
 import OptimismFetchPosition from "../../abi/vanna/v1/out/OptimismFetchPosition.sol/OptimismFetchPosition.json";
 import AccountManager_op from "../../abi/vanna/v1/out/AccountManager-op.sol/AccountManager-op.json";
 import { defaultTokenOptions } from "@/app/lib/static-values";
+import { useAccount, useWalletClient } from "wagmi";
 
 const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
   market,
@@ -60,7 +61,8 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
   marketOption,
   setDataFetching,
 }) => {
-  const { account, library } = useWeb3React();
+  const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { currentNetwork } = useNetwork();
   const [notifications, setNotifications] = useState<
     Array<{ id: number; type: NotificationType; message: string }>
@@ -158,11 +160,12 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
     setLoading(true);
     if (
       localStorage.getItem("isWalletConnected") === "true" &&
-      account &&
-      currentNetwork
+      address &&
+      currentNetwork && walletClient
     ) {
       try {
-        const signer = await library?.getSigner();
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
 
         let regitstryContract;
         if (currentNetwork.id === ARBITRUM_NETWORK) {
@@ -186,7 +189,7 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
         }
         if (regitstryContract) {
           const accountsArray = await regitstryContract.accountsOwnedBy(
-            account
+            address
           );
           let tempAccount;
 
@@ -226,7 +229,7 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
 
   useEffect(() => {
     accountCheck();
-  }, [account, library, currentNetwork]);
+  }, [address, walletClient, currentNetwork]);
 
   useEffect(() => {
     accountCheck();
@@ -275,9 +278,9 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
     try {
       setCoinBalance(0);
 
-      if (activeAccount && currentNetwork) {
-        const signer = await library?.getSigner();
-
+      if (activeAccount && currentNetwork && walletClient && address) {
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
         if (isOpen) {
           let daiContract;
           let wethContract;
@@ -411,7 +414,8 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
 
           let accountBalance;
           if (tokenName === "WETH") {
-            accountBalance = (await library?.getBalance(activeAccount)) / 1e18;
+            accountBalance = parseFloat(ethers.utils.formatEther(await provider.getBalance(activeAccount)));
+
             accountBalance +=
               (await wethContract.balanceOf(activeAccount)) / 1e18;
             accountBalance = accountBalance;
@@ -540,7 +544,9 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
     setLoading(true);
 
     try {
-      if (!currentNetwork) return;
+      if (!currentNetwork || !walletClient || !address) return;
+      const provider = new ethers.providers.Web3Provider(walletClient as any);
+      const signer = provider.getSigner();
       // order type = fixed
       // check if balance have colletral
       if (currentNetwork.id === ARBITRUM_NETWORK) {
@@ -574,7 +580,6 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
         const flags = 192;
         const tsplDeadline =
           Math.floor(Date.now() / 1000) + oneMonthTimestampInterval;
-        const signer = await library?.getSigner();
         const accountManagerContract = new Contract(
           arbAddressList.accountManagerContractAddress,
           AccountManager.abi,
@@ -615,7 +620,6 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
         const isBaseToQuote = buySell === "buy" ? false : true;
         const isExactInput = buySell === "buy" ? true : false;
         if (!activeAccount || collateralAmount === "") return;
-        const signer = await library?.getSigner();
 
         const accountManagerContract = new Contract(
           opAddressList.accountManagerContractAddress,
@@ -739,7 +743,9 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
     setLoading(true);
 
     try {
-      if (!currentNetwork) return;
+      if (!currentNetwork || !walletClient || !address)  return;
+      const provider = new ethers.providers.Web3Provider(walletClient as any);
+      const signer = provider.getSigner();
 
       const isLong = buySell === "buy";
 
@@ -762,7 +768,6 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
         //  0
         //  0	params.referralCode	bytes32
          
-        const signer = await library?.getSigner();
 
         const accountManagerOpContract = new Contract(
           opAddressList.accountManagerContractAddress,
@@ -1151,12 +1156,12 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
           </div>
         </div>
 
-        {!account && (
+        {!address && (
           <button className="w-full bg-neutral-500 text-white py-3 rounded-2xl font-semibold text-xl mb-6">
             Connect Wallet
           </button>
         )}
-        {account && activeAccount === undefined && !loading && (
+        {address && activeAccount === undefined && !loading && (
           <button
             className="w-full bg-neutral-500 text-white py-3 rounded-2xl font-semibold text-xl mb-6"
             onClick={() => setIsModalOpen(true)}
@@ -1164,7 +1169,7 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
             Create your Margin Account
           </button>
         )}
-        {account && loading && (
+        {address && loading && (
           <div className="flex justify-between gap-4">
             <button className="flex-1 bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition-colors flex justify-center">
               <Loader />
@@ -1174,7 +1179,7 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
             </button>
           </div>
         )}
-        {account && activeAccount !== undefined && !loading && isOpen && (
+        {address && activeAccount !== undefined && !loading && isOpen && (
           <div className="flex justify-between gap-4">
             <button
               className="flex-1 bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition-colors"
@@ -1190,7 +1195,7 @@ const PositionOpenClose: React.FC<PositionOpenCloseProps> = ({
             </button>
           </div>
         )}
-        {account && activeAccount !== undefined && !loading && !isOpen && (
+        {address && activeAccount !== undefined && !loading && !isOpen && (
           <div className="flex justify-between gap-4">
             <button
               className="flex-1 bg-green-500 text-white py-5 px-4 rounded-md hover:bg-green-600 transition-colors"

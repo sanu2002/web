@@ -195,6 +195,44 @@ interface PoolPropsLenderDashboard {
   isLoss?: boolean;
 }
 
+
+interface Chains {
+  id: number;
+  name: string;
+  nativeCurrency: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  rpcUrls: {
+    default: {
+      http: string[];
+    };
+  };
+  blockExplorers: {
+    default: {
+      name: string;
+      url: string;
+      apiUrl?: string; // optional because not all explorers have this
+    };
+  };
+  contracts: {
+    multicall3?: {
+      address: string;
+      blockCreated: number;
+    };
+    ensRegistry?: {
+      address: string;
+    };
+    ensUniversalResolver?: {
+      address: string;
+      blockCreated?: number;
+    };
+  };
+  testnet?: boolean;
+};
+
+
 interface BurgerMenuProps {
   onClose: () => void;
 }

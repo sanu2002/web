@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-// import { useNetwork } from "@/app/context/network-context";
+import { useNetwork } from "@/app/context/network-context";
 import {
   ceilWithPrecision,
   formatBignumberToUnits,
@@ -20,8 +20,8 @@ import TokenDropdown from "@/app/ui/components/token-dropdown";
 import Loader from "@/app/ui/components/loader";
 import { ethPoolObj, poolsPlaceholder } from "@/app/lib/static-values";
 import { CaretDown, CaretUp, Lightning } from "@phosphor-icons/react";
-import { useWeb3React } from "@web3-react/core";
-import { Contract } from "ethers";
+import { useAccount, useWalletClient } from "wagmi";
+import { Contract, ethers } from "ethers";
 import { formatUnits, Interface } from "ethers/lib/utils";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -36,14 +36,14 @@ import {
   BASE_NETWORK,
   OPTIMISM_NETWORK,
 } from "@/app/lib/constants";
-import { useNetwork } from "@/app/context/network-context";
 import axios from "axios";
 import { formatUSD } from "@/app/lib/number-format-helper";
 import CreateSmartAccountModal from "@/app/ui/components/create-smart-account-model";
 import Notification from "@/app/ui/components/notification";
 
 export default function Page() {
-  const { account, library } = useWeb3React();
+  const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const [activeAccount, setActiveAccount] = useState<string | undefined>();
   const { currentNetwork } = useNetwork();
   const [notifications, setNotifications] = useState<
@@ -98,11 +98,14 @@ export default function Page() {
   const accountCheck = async () => {
     if (
       localStorage.getItem("isWalletConnected") === "true" &&
-      account &&
-      currentNetwork
+      address &&
+      currentNetwork &&
+      walletClient
     ) {
       try {
-        const signer = await library?.getSigner();
+        // Create ethers provider and signer from walletClient
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
 
         let registryContract;
         if (currentNetwork.id === ARBITRUM_NETWORK) {
@@ -126,7 +129,7 @@ export default function Page() {
         }
 
         if (registryContract) {
-          const accountsArray = await registryContract.accountsOwnedBy(account);
+          const accountsArray = await registryContract.accountsOwnedBy(address);
           let tempAccount;
 
           if (accountsArray.length > 0) {
@@ -150,7 +153,7 @@ export default function Page() {
 
   useEffect(() => {
     accountCheck();
-  }, [account, library, currentNetwork]);
+  }, [address, walletClient, currentNetwork]);
 
   useEffect(() => {
     accountCheck();
@@ -158,8 +161,11 @@ export default function Page() {
 
   const balanceFetch = async () => {
     try {
-      if (activeAccount && currentNetwork) {
-        const signer = await library?.getSigner();
+      if (activeAccount && currentNetwork && walletClient) {
+        // Create ethers provider and signer from walletClient
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
+
         let daiContract;
         let usdcContract;
         let usdtContract;
@@ -339,7 +345,7 @@ export default function Page() {
 
   useEffect(() => {
     balanceFetch();
-  }, [account, activeAccount, currentNetwork]);
+  }, [address, activeAccount, currentNetwork]);
 
   useEffect(() => {
     const tokenName = payCoin.name ? payCoin.name : "";
@@ -368,7 +374,10 @@ export default function Page() {
         return;
       }
       if (currentNetwork.id === ARBITRUM_NETWORK) {
-        const signer = await library?.getSigner();
+        // Create ethers provider and signer from walletClient
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
+
         // struct Data
         const tokenIn = arbTokensAddress[payCoin.name];
         const tokenOut = arbTokensAddress[receiveCoin.name];
@@ -517,7 +526,10 @@ export default function Page() {
           });
         }
       } else if (currentNetwork.id === OPTIMISM_NETWORK) {
-        const signer = await library?.getSigner();
+        // Create ethers provider and signer from walletClient
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
+
         // struct Data
         const tokenIn = opTokensAddress[payCoin.name];
         const tokenOut = opTokensAddress[receiveCoin.name];
@@ -773,17 +785,17 @@ export default function Page() {
         </div>
       </div>
 
-      {!account && (
+      {!address && (
         <button className="w-full bg-neutral-500 text-white py-3 rounded-2xl font-semibold text-xl mb-6">
           Connect Wallet
         </button>
       )}
-      {account && loading && (
+      {address && loading && (
         <button className="w-full bg-purple py-3 rounded-2xl font-semibold text-xl mb-6 flex justify-center">
           <Loader />
         </button>
       )}
-      {account && activeAccount === undefined && !loading && (
+      {address && activeAccount === undefined && !loading && (
         <button
           className="w-full bg-purple text-white py-3 rounded-2xl font-semibold text-xl mb-6"
           onClick={() => setIsModalOpen(true)}
@@ -791,12 +803,12 @@ export default function Page() {
           Create your Margin Account
         </button>
       )}
-      {account && activeAccount !== undefined && !loading && disableBtn && (
+      {address && activeAccount !== undefined && !loading && disableBtn && (
         <button className="w-full bg-neutral-500 text-white py-3 rounded-2xl font-semibold text-xl mb-6">
           {btnValue}
         </button>
       )}
-      {account && activeAccount !== undefined && !loading && !disableBtn && (
+      {address && activeAccount !== undefined && !loading && !disableBtn && (
         <button
           className="w-full bg-purple text-white py-3 rounded-2xl font-semibold text-xl mb-6"
           onClick={spot}

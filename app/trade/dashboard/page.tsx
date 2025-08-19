@@ -10,7 +10,7 @@ import {
 import FutureDropdown from "@/app/ui/future/future-dropdown";
 import { CheckSquare, Square } from "@phosphor-icons/react";
 import { useNetwork } from "@/app/context/network-context";
-import { useWeb3React } from "@web3-react/core";
+import { useAccount, useWalletClient } from "wagmi";
 import { useEffect, useRef, useState } from "react";
 import {
   ARBITRUM_NETWORK,
@@ -40,9 +40,11 @@ import VToken from "../../abi/vanna/v1/out/VToken.sol/VToken.json";
 import Multicall from "@/app/abi/vanna/v1/out/Multicall.sol/Multicall.json";
 import DefaultRateModel from "@/app/abi/vanna/v1/out/DefaultRateModel.sol/DefaultRateModel.json";
 import Loader from "@/app/ui/components/loader";
+import { ethers } from "ethers";
 
 export default function Page() {
-  const { account, library } = useWeb3React();
+  const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { currentNetwork } = useNetwork();
   const [activeAccount, setActiveAccount] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
@@ -273,11 +275,14 @@ export default function Page() {
   const accountCheck = async () => {
     if (
       localStorage.getItem("isWalletConnected") === "true" &&
-      account &&
-      currentNetwork
+      address &&
+      currentNetwork &&
+      walletClient
     ) {
       try {
-        const signer = await library?.getSigner();
+        // Create ethers provider and signer from walletClient
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
 
         let registryContract;
         if (currentNetwork.id === ARBITRUM_NETWORK) {
@@ -301,7 +306,7 @@ export default function Page() {
         }
 
         if (registryContract) {
-          const accountsArray = await registryContract.accountsOwnedBy(account);
+          const accountsArray = await registryContract.accountsOwnedBy(address);
           let tempAccount;
 
           if (accountsArray.length > 0) {
@@ -324,7 +329,7 @@ export default function Page() {
 
   useEffect(() => {
     accountCheck();
-  }, [account, library, currentNetwork]);
+  }, [address, currentNetwork, walletClient]);
 
   useEffect(() => {
     // TODO: @vatsal add code here to get availableBalance, marginUsage, totalPnl, healthFactor, borrowRate in trade -> dashboard page
@@ -385,7 +390,7 @@ export default function Page() {
     setLoading(true);
     setFuturesPositions(defaultFuturePositions);
     try {
-      if (!currentNetwork) return;
+      if (!currentNetwork || !walletClient) return;
 
       let deltaCall = 0;
       let deltaPut = 0;
@@ -410,9 +415,12 @@ export default function Page() {
       let tTokenOracleContract;
 
       if (activeAccount) {
+        // Create ethers provider and signer from walletClient
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
+
         if (currentNetwork.id === ARBITRUM_NETWORK) {
           const renderedRows: FuturePosition[] = [];
-          const signer = await library?.getSigner();
           const liquidityPoolContract = new Contract(
             arbAddressList.muxLiquidityPoolAddress,
             LiquidityPool.abi,
@@ -521,11 +529,10 @@ export default function Page() {
           WETHContract = new Contract(
             arbAddressList.wethTokenAddress,
             ERC20.abi,
-            library
+            provider
           );
         } else if (currentNetwork.id === OPTIMISM_NETWORK) {
           const renderedRows: FuturePosition[] = [];
-          const signer = await library?.getSigner();
 
           const OptimismFetchPositionContract = new Contract(
             opAddressList.optimismFetchPositionContractAddress,
@@ -566,7 +573,7 @@ export default function Page() {
           WETHContract = new Contract(
             opAddressList.wethTokenAddress,
             ERC20.abi,
-            library
+            provider
           );
           tTokenOracleContract = new Contract(
             opAddressList.OracleFacade,
@@ -768,7 +775,7 @@ export default function Page() {
         const MCcontract = new Contract(
           opAddressList.multicallAddress,
           Multicall.abi,
-          library
+          provider
         );
 
         const calldata = [];
@@ -1010,7 +1017,7 @@ export default function Page() {
 
   useEffect(() => {
     fetchFuturePositions();
-  }, [activeAccount, currentNetwork]);
+  }, [activeAccount, currentNetwork, walletClient]);
 
   return (
     <div className="pt-5 sm:pt-7 lg:pt-10 pb-5 px-2.5 md:px-5 lg:px-7 xl:px-10 text-baseBlack dark:text-baseWhite">

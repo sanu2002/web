@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import InfoRow from "./InfoRowProps";
-import { useWeb3React } from "@web3-react/core";
+import { useAccount, useWalletClient } from "wagmi";
 import { useNetwork } from "@/app/context/network-context";
 import {
   ARBITRUM_NETWORK,
@@ -12,7 +12,7 @@ import {
   opAddressList,
   baseAddressList,
 } from "@/app/lib/web3-constants";
-import { Contract } from "ethers";
+import { Contract, ethers } from "ethers";
 import ERC20 from "../../abi/vanna/v1/out/ERC20.sol/ERC20.json";
 import Registry from "../../abi/vanna/v1/out/Registry.sol/Registry.json";
 import VEther from "../../abi/vanna/v1/out/VEther.sol/VEther.json";
@@ -21,7 +21,8 @@ import { ceilWithPrecision } from "@/app/lib/helper";
 import Loader from "../components/loader";
 
 const SpotTab: React.FC = () => {
-  const { account, library } = useWeb3React();
+  const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { currentNetwork } = useNetwork();
   const [activeAccount, setActiveAccount] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
@@ -36,11 +37,14 @@ const SpotTab: React.FC = () => {
   const accountCheck = async () => {
     if (
       localStorage.getItem("isWalletConnected") === "true" &&
-      account &&
-      currentNetwork
+      address &&
+      currentNetwork &&
+      walletClient
     ) {
       try {
-        const signer = await library?.getSigner();
+        // Create ethers provider and signer from walletClient
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
 
         let registryContract;
         if (currentNetwork.id === ARBITRUM_NETWORK) {
@@ -64,7 +68,7 @@ const SpotTab: React.FC = () => {
         }
 
         if (registryContract) {
-          const accountsArray = await registryContract.accountsOwnedBy(account);
+          const accountsArray = await registryContract.accountsOwnedBy(address);
           let tempAccount;
 
           if (accountsArray.length > 0) {
@@ -87,7 +91,7 @@ const SpotTab: React.FC = () => {
 
   useEffect(() => {
     accountCheck();
-  }, [account, library, currentNetwork]);
+  }, [address, walletClient, currentNetwork]);
 
   useEffect(() => {
     // TODO: @vatsal this is page for spot in borrow dashboard in overview page. Add code here for balance fetching
@@ -96,8 +100,10 @@ const SpotTab: React.FC = () => {
       setLoading(true);
 
       try {
-        if (activeAccount && currentNetwork) {
-          const signer = await library?.getSigner();
+        if (activeAccount && currentNetwork && walletClient) {
+          // Create ethers provider and signer from walletClient
+          const provider = new ethers.providers.Web3Provider(walletClient as any);
+          const signer = provider.getSigner();
 
           let daiContract;
           let wethContract;
@@ -230,17 +236,17 @@ const SpotTab: React.FC = () => {
             return;
 
           const ethAccountBalance =
-            (await library?.getBalance(activeAccount)) / 1e18;
+            ethers.utils.formatEther(await provider.getBalance(activeAccount));
           const wethAccounBalance =
-            (await wethContract.balanceOf(activeAccount)) / 1e18;
+            ethers.utils.formatEther(await wethContract.balanceOf(activeAccount));
           const wbtcAccounBalance =
-            (await wbtcContract.balanceOf(activeAccount)) / 1e18;
+            ethers.utils.formatEther(await wbtcContract.balanceOf(activeAccount));
           const usdcAccounBalance =
-            (await usdcContract.balanceOf(activeAccount)) / 1e6;
+            ethers.utils.formatUnits(await usdcContract.balanceOf(activeAccount), 6);
           const usdtAccounBalance =
-            (await usdtContract.balanceOf(activeAccount)) / 1e6;
+            ethers.utils.formatUnits(await usdtContract.balanceOf(activeAccount), 6);
           const daiAccounBalance =
-            (await daiContract.balanceOf(activeAccount)) / 1e18;
+            ethers.utils.formatEther(await daiContract.balanceOf(activeAccount));
 
           setETH(ceilWithPrecision(String(ethAccountBalance)));
           setWETH(ceilWithPrecision(String(wethAccounBalance)));
@@ -257,7 +263,7 @@ const SpotTab: React.FC = () => {
     };
 
     fetchValues();
-  }, [activeAccount, currentNetwork]);
+  }, [activeAccount, currentNetwork, walletClient]);
 
   return (
     <div className="grid grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-5">

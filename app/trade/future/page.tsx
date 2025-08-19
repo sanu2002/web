@@ -12,15 +12,16 @@ import PositionsSection from "@/app/ui/future/positions-section";
 import TradingViewChart from "@/app/ui/future/trading-view-chart";
 import axios from "axios";
 import { Contract } from "ethers";
-import { useWeb3React } from "@web3-react/core";
+import { useWalletClient } from "wagmi";
 import { useEffect, useRef, useState } from "react";
 import { opAddressList } from "@/app/lib/web3-constants";
 import OpMarkPrice from "../../abi/vanna/v1/out/OpMarkPrice.sol/OpMarkPrice.json";
 import OpIndexPrice from "../../abi/vanna/v1/out/OpIndexPrice.sol/OpIndexPrice.json";
 import { ceilWithPrecision } from "@/app/lib/helper";
+import { ethers } from "ethers";
 
 export default function Page() {
-  const { library } = useWeb3React();
+  const { data: walletClient } = useWalletClient();
   const { currentNetwork } = useNetwork();
 
   const pairOptions: Option[] = [
@@ -62,8 +63,11 @@ export default function Page() {
   const [volume, setVolume] = useState<string>("-");
 
   const fetchValues = async () => {
-    if (!currentNetwork) return;
-    const signer = await library?.getSigner();
+    if (!currentNetwork || !walletClient) return;
+
+    // Create ethers provider and signer from walletClient
+    const provider = new ethers.providers.Web3Provider(walletClient as any);
+    const signer = provider.getSigner();
 
     let indexPriceContract;
     let markPriceContract;
@@ -112,7 +116,7 @@ export default function Page() {
 
   useEffect(() => {
     fetchValues();
-  }, [library, currentNetwork]);
+  }, [walletClient, currentNetwork]);
 
   useEffect(() => {
     const protocol = networkOptionsMap[currentNetwork?.id || ""] || [
@@ -134,8 +138,8 @@ export default function Page() {
     const low = asset.price - fourPercent;
     setHighLow(
       ceilWithPrecision(String(high), 2) +
-        "/" +
-        ceilWithPrecision(String(low), 2)
+      "/" +
+      ceilWithPrecision(String(low), 2)
     );
     setOpenInterestPositive(
       ceilWithPrecision(String(asset.availableForLong), 1)

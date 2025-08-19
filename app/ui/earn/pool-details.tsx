@@ -17,7 +17,7 @@ import {
   BASE_NETWORK,
   OPTIMISM_NETWORK,
 } from "@/app/lib/constants";
-import { utils, Contract } from "ethers";
+import { utils, Contract, ethers } from "ethers";
 import { formatUnits, parseUnits } from "ethers/lib/utils";
 
 import VEther from "@/app/abi/vanna/v1/out/VEther.sol/VEther.json";
@@ -29,9 +29,11 @@ import { ceilWithPrecision, check0xHex } from "@/app/lib/helper";
 import axios from "axios";
 import { formatUSD } from "@/app/lib/number-format-helper";
 import Notification from "../components/notification";
+import { useAccount, useWalletClient } from "wagmi";
 
 const PoolDetails = ({ pool }: { pool: PoolTable }) => {
-  const { account, library } = useWeb3React();
+  const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { currentNetwork } = useNetwork();
   const [details, setDetails] = useState(poolDetailsPlaceholder);
   const [poolAddress, setPoolAddress] = useState("-");
@@ -64,7 +66,9 @@ const PoolDetails = ({ pool }: { pool: PoolTable }) => {
     if (!currentNetwork) return;
     if (currentNetwork.id === ARBITRUM_NETWORK) {
       try {
-        if (account) {
+        if (address && walletClient) {
+          const provider = new ethers.providers.Web3Provider(walletClient as any);
+          const signer = provider.getSigner();
           const fetchValues = async () => {
             const iFaceEth = new utils.Interface(VEther.abi);
             const iFaceToken = new utils.Interface(VToken.abi);
@@ -72,7 +76,7 @@ const PoolDetails = ({ pool }: { pool: PoolTable }) => {
             const MCcontract = new Contract(
               arbAddressList.multicallAddress,
               Multicall.abi,
-              library
+              signer
             );
 
             const calldata = [];
@@ -831,7 +835,9 @@ const PoolDetails = ({ pool }: { pool: PoolTable }) => {
       }
     } else if (currentNetwork.id === OPTIMISM_NETWORK) {
       try {
-        if (account) {
+        if (address && walletClient) {
+          const provider = new ethers.providers.Web3Provider(walletClient as any);
+          const signer = provider.getSigner();
           const fetchValues = async () => {
             const iFaceEth = new utils.Interface(VEther.abi);
             const iFaceToken = new utils.Interface(VToken.abi);
@@ -839,7 +845,7 @@ const PoolDetails = ({ pool }: { pool: PoolTable }) => {
             const MCcontract = new Contract(
               opAddressList.multicallAddress,
               Multicall.abi,
-              library
+              signer
             );
 
             const calldata = [];
@@ -2365,7 +2371,7 @@ const PoolDetails = ({ pool }: { pool: PoolTable }) => {
     //     console.error(error);
     //   }
     // }
-  }, [account, pool, currentNetwork]);
+  }, [address, pool, currentNetwork, walletClient]);
 
   const handleCopyAddress = (address: string) => {
     navigator.clipboard.writeText(address);

@@ -6,7 +6,7 @@ import LenderDashboard from "./lender-dashboard";
 import BorrowerDashboard from "./borrower-dashboard";
 import Image from "next/image";
 import { useDarkMode } from "../header/use-dark-mode";
-import { utils, Contract } from "ethers";
+import { utils, Contract, ethers } from "ethers";
 import {
   arbAddressList,
   baseAddressList,
@@ -32,10 +32,12 @@ import { formatUnits } from "ethers/lib/utils";
 import axios from "axios";
 import { formatUSD } from "@/app/lib/number-format-helper";
 import Loader from "../components/loader";
+import { useAccount, useWalletClient } from "wagmi";
 
 const TotalHoldings: React.FC<{ activeTab: string }> = ({ activeTab }) => {
   const { isDarkMode } = useDarkMode();
-  const { account, library } = useWeb3React();
+  const { address, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { currentNetwork } = useNetwork();
 
   const market = "ETH";
@@ -58,11 +60,12 @@ const TotalHoldings: React.FC<{ activeTab: string }> = ({ activeTab }) => {
   const accountCheck = async () => {
     if (
       localStorage.getItem("isWalletConnected") === "true" &&
-      account &&
-      currentNetwork
+      address &&
+      currentNetwork && walletClient
     ) {
       try {
-        const signer = await library?.getSigner();
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
 
         let regitstryContract;
         if (currentNetwork.id === ARBITRUM_NETWORK) {
@@ -86,7 +89,7 @@ const TotalHoldings: React.FC<{ activeTab: string }> = ({ activeTab }) => {
         }
         if (regitstryContract) {
           const accountsArray = await regitstryContract.accountsOwnedBy(
-            account
+            address
           );
           let tempAccount;
 
@@ -145,7 +148,7 @@ const TotalHoldings: React.FC<{ activeTab: string }> = ({ activeTab }) => {
 
   useEffect(() => {
     accountCheck();
-  }, [account, library, currentNetwork]);
+  }, [address, walletClient, currentNetwork]);
 
   useEffect(() => {
     const intervalId = setInterval(getAssetPrice, 100000); // Calls fetchData every second
@@ -173,9 +176,10 @@ const TotalHoldings: React.FC<{ activeTab: string }> = ({ activeTab }) => {
     const fetchValues = async () => {
       try {
         if (activeTab === "Trader") {
-          if (!activeAccount) return;
+          if (!activeAccount && !walletClient && !currentNetwork && !address) return;
 
-          const signer = await library?.getSigner();
+          const provider = new ethers.providers.Web3Provider(walletClient as any);
+          const signer = provider.getSigner();
 
           let daiContract;
           let wethContract;
@@ -353,7 +357,8 @@ const TotalHoldings: React.FC<{ activeTab: string }> = ({ activeTab }) => {
           }
 
           // ETH
-          let accountBalance = await library?.getBalance(activeAccount);
+          if(!activeAccount) return;
+          let accountBalance = Number(ethers.utils.formatEther(await provider?.getBalance(activeAccount)));
           const waccountBalance = await wethContract.balanceOf(activeAccount);
 
           accountBalance = Number(accountBalance) + Number(waccountBalance);
@@ -468,7 +473,9 @@ const TotalHoldings: React.FC<{ activeTab: string }> = ({ activeTab }) => {
           setTotalReturnsPercentage(totalReturnsPercentage / 1e1);
           setHealthFactor(healthFactor);
         } else {
-          if (!account) return;
+          if (!address || !walletClient || !currentNetwork) return;
+          const provider = new ethers.providers.Web3Provider(walletClient as any);
+          const signer = provider.getSigner();
           const iFaceEth = new utils.Interface(VEther.abi);
           const iFaceToken = new utils.Interface(VToken.abi);
           let calldata = [];
@@ -479,38 +486,38 @@ const TotalHoldings: React.FC<{ activeTab: string }> = ({ activeTab }) => {
             const MCcontract = new Contract(
               arbAddressList.multicallAddress,
               Multicall.abi,
-              library
+              signer
             );
             calldata = [];
             tempData = null;
 
             //ETH
             tempData = utils.arrayify(
-              iFaceEth.encodeFunctionData("balanceOf", [account])
+              iFaceEth.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([arbAddressList.vEtherContractAddress, tempData]);
 
             //WBTC
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([arbAddressList.vWBTCContractAddress, tempData]);
 
             //USDC
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([arbAddressList.vUSDCContractAddress, tempData]);
 
             //USDT
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([arbAddressList.vUSDTContractAddress, tempData]);
 
             //DAI
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([arbAddressList.vDaiContractAddress, tempData]);
 
@@ -596,37 +603,37 @@ const TotalHoldings: React.FC<{ activeTab: string }> = ({ activeTab }) => {
             const MCcontract = new Contract(
               opAddressList.multicallAddress,
               Multicall.abi,
-              library
+              signer
             );
             calldata = [];
             tempData = null;
             //ETH
             tempData = utils.arrayify(
-              iFaceEth.encodeFunctionData("balanceOf", [account])
+              iFaceEth.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([opAddressList.vEtherContractAddress, tempData]);
 
             //WBTC
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([opAddressList.vWBTCContractAddress, tempData]);
 
             //USDC
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([opAddressList.vUSDCContractAddress, tempData]);
 
             //USDT
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([opAddressList.vUSDTContractAddress, tempData]);
 
             //DAI
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([opAddressList.vDaiContractAddress, tempData]);
 
@@ -721,38 +728,38 @@ const TotalHoldings: React.FC<{ activeTab: string }> = ({ activeTab }) => {
             const MCcontract = new Contract(
               baseAddressList.multicallAddress,
               Multicall.abi,
-              library
+              signer
             );
             calldata = [];
             tempData = null;
 
             //ETH
             tempData = utils.arrayify(
-              iFaceEth.encodeFunctionData("balanceOf", [account])
+              iFaceEth.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([baseAddressList.vEtherContractAddress, tempData]);
 
             //WBTC
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([baseAddressList.vWBTCContractAddress, tempData]);
 
             //USDC
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([baseAddressList.vUSDCContractAddress, tempData]);
 
             //USDT
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([baseAddressList.vUSDTContractAddress, tempData]);
 
             //DAI
             tempData = utils.arrayify(
-              iFaceToken.encodeFunctionData("balanceOf", [account])
+              iFaceToken.encodeFunctionData("balanceOf", [address])
             );
             calldata.push([baseAddressList.vDaiContractAddress, tempData]);
 
@@ -843,7 +850,7 @@ const TotalHoldings: React.FC<{ activeTab: string }> = ({ activeTab }) => {
     fetchValues();
 
     setLoading(false);
-  }, [activeTab, currentNetwork, activeAccount, account, assetsPrice, library]);
+  }, [activeTab, currentNetwork, activeAccount, address, assetsPrice, walletClient]);
 
   return (
     <div className="bg-white dark:bg-baseDark rounded-3xl border border-purpleBG-lighter dark:border-neutral-700 p-4 lg:p-7 mb-7">

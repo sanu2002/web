@@ -42,6 +42,7 @@ import Loader from "../components/loader";
 import { formatUSD } from "@/app/lib/number-format-helper";
 import axios from "axios";
 import Notification from "../components/notification";
+import { useAccount, useWalletClient } from "wagmi";
 
 const SupplyWithdraw = ({
   pool,
@@ -50,7 +51,8 @@ const SupplyWithdraw = ({
   pool: PoolTable;
   onTokenUpdate: (token: PoolTable) => void;
 }) => {
-  const { account, library } = useWeb3React();
+    const { address, isConnected, chainId } = useAccount();
+    const { data: walletClient } = useWalletClient();
   const { currentNetwork } = useNetwork();
   const [isSupply, setIsSupply] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -125,11 +127,11 @@ const SupplyWithdraw = ({
 
   const fetchParams = () => {
     try {
-      if (!currentNetwork) return;
-
+      if (!currentNetwork || !walletClient || !address) return;
+    const provider = new ethers.providers.Web3Provider(walletClient as any);
       const processParams = async () => {
-        if (library && library?.getSigner()) {
-          const signer = await library?.getSigner();
+        if (provider && provider.getSigner()) {
+          const signer = provider.getSigner();
 
           let vEtherContract;
           let vDaiContract;
@@ -297,7 +299,7 @@ const SupplyWithdraw = ({
           setEthPerVeth("-");
         }
 
-        if (!isSupply && account) {
+        if (!isSupply && address) {
           let res;
 
           if (currentNetwork.id === ARBITRUM_NETWORK) {
@@ -307,7 +309,7 @@ const SupplyWithdraw = ({
             const MCcontract = new Contract(
               arbAddressList.multicallAddress,
               Multicall.abi,
-              library
+              
             );
 
             const calldata = [];
@@ -350,13 +352,15 @@ const SupplyWithdraw = ({
 
             res = await MCcontract.callStatic.aggregate(calldata);
           } else if (currentNetwork.id === OPTIMISM_NETWORK) {
+              const provider = new ethers.providers.Web3Provider(walletClient as any);
+              const signer = provider.getSigner();
             const iFaceEth = new utils.Interface(VEther.abi);
             const iFaceToken = new utils.Interface(VToken.abi);
 
             const MCcontract = new Contract(
               opAddressList.multicallAddress,
               Multicall.abi,
-              library
+              signer
             );
 
             const calldata = [];
@@ -399,13 +403,15 @@ const SupplyWithdraw = ({
 
             res = await MCcontract.callStatic.aggregate(calldata);
           } else if (currentNetwork.id === BASE_NETWORK) {
+            const provider = new ethers.providers.Web3Provider(walletClient as any);
+            const signer = provider.getSigner();
             const iFaceEth = new utils.Interface(VEther.abi);
             const iFaceToken = new utils.Interface(VToken.abi);
 
             const MCcontract = new Contract(
               baseAddressList.multicallAddress,
               Multicall.abi,
-              library
+              signer
             );
 
             const calldata = [];
@@ -490,14 +496,15 @@ const SupplyWithdraw = ({
 
   const getTokenBalance = async (tokenName = selectedToken.name) => {
     try {
-      if (account && currentNetwork) {
-        const signer = await library?.getSigner();
+      if (address && currentNetwork && walletClient) {
+        const provider = new ethers.providers.Web3Provider(walletClient as any);
+        const signer = provider.getSigner();
 
         if (isSupply) {
           let bal;
 
           if (tokenName == "WETH") {
-            bal = await library?.getBalance(account);
+            bal = await provider?.getBalance(address);
           } else {
             let contract;
 
@@ -522,7 +529,7 @@ const SupplyWithdraw = ({
             }
 
             if (contract) {
-              bal = await contract.balanceOf(account);
+              bal = await contract.balanceOf(address);
             }
           }
 
@@ -532,6 +539,8 @@ const SupplyWithdraw = ({
           setCoinBalance(Number(balInNumber));
         } else {
           const fetchValues = async () => {
+            const provider = new ethers.providers.Web3Provider(walletClient as any);
+            const signer = provider.getSigner();
             const iFaceEth = new utils.Interface(VEther.abi);
             const iFaceToken = new utils.Interface(VToken.abi);
             let calldata = [];
@@ -542,38 +551,38 @@ const SupplyWithdraw = ({
               const MCcontract = new Contract(
                 arbAddressList.multicallAddress,
                 Multicall.abi,
-                library
+                signer
               );
               calldata = [];
               tempData = null;
 
               //ETH
               tempData = utils.arrayify(
-                iFaceEth.encodeFunctionData("balanceOf", [account])
+                iFaceEth.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([arbAddressList.vEtherContractAddress, tempData]);
 
               //WBTC
               tempData = utils.arrayify(
-                iFaceToken.encodeFunctionData("balanceOf", [account])
+                iFaceToken.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([arbAddressList.vWBTCContractAddress, tempData]);
 
               //USDC
               tempData = utils.arrayify(
-                iFaceToken.encodeFunctionData("balanceOf", [account])
+                iFaceToken.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([arbAddressList.vUSDCContractAddress, tempData]);
 
               //USDT
               tempData = utils.arrayify(
-                iFaceToken.encodeFunctionData("balanceOf", [account])
+                iFaceToken.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([arbAddressList.vUSDTContractAddress, tempData]);
 
               //DAI
               tempData = utils.arrayify(
-                iFaceToken.encodeFunctionData("balanceOf", [account])
+                iFaceToken.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([arbAddressList.vDaiContractAddress, tempData]);
 
@@ -601,37 +610,37 @@ const SupplyWithdraw = ({
               const MCcontract = new Contract(
                 opAddressList.multicallAddress,
                 Multicall.abi,
-                library
+                signer
               );
               calldata = [];
               tempData = null;
               //ETH
               tempData = utils.arrayify(
-                iFaceEth.encodeFunctionData("balanceOf", [account])
+                iFaceEth.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([opAddressList.vEtherContractAddress, tempData]);
 
               //WBTC
               tempData = utils.arrayify(
-                iFaceToken.encodeFunctionData("balanceOf", [account])
+                iFaceToken.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([opAddressList.vWBTCContractAddress, tempData]);
 
               //USDC
               tempData = utils.arrayify(
-                iFaceToken.encodeFunctionData("balanceOf", [account])
+                iFaceToken.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([opAddressList.vUSDCContractAddress, tempData]);
 
               //USDT
               tempData = utils.arrayify(
-                iFaceToken.encodeFunctionData("balanceOf", [account])
+                iFaceToken.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([opAddressList.vUSDTContractAddress, tempData]);
 
               //DAI
               tempData = utils.arrayify(
-                iFaceToken.encodeFunctionData("balanceOf", [account])
+                iFaceToken.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([opAddressList.vDaiContractAddress, tempData]);
 
@@ -659,38 +668,38 @@ const SupplyWithdraw = ({
               const MCcontract = new Contract(
                 baseAddressList.multicallAddress,
                 Multicall.abi,
-                library
+                signer
               );
               calldata = [];
               tempData = null;
 
               //ETH
               tempData = utils.arrayify(
-                iFaceEth.encodeFunctionData("balanceOf", [account])
+                iFaceEth.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([baseAddressList.vEtherContractAddress, tempData]);
 
               //WBTC
               tempData = utils.arrayify(
-                iFaceToken.encodeFunctionData("balanceOf", [account])
+                iFaceToken.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([baseAddressList.vWBTCContractAddress, tempData]);
 
               //USDC
               tempData = utils.arrayify(
-                iFaceToken.encodeFunctionData("balanceOf", [account])
+                iFaceToken.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([baseAddressList.vUSDCContractAddress, tempData]);
 
               //USDT
               tempData = utils.arrayify(
-                iFaceToken.encodeFunctionData("balanceOf", [account])
+                iFaceToken.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([baseAddressList.vUSDTContractAddress, tempData]);
 
               //DAI
               tempData = utils.arrayify(
-                iFaceToken.encodeFunctionData("balanceOf", [account])
+                iFaceToken.encodeFunctionData("balanceOf", [address])
               );
               calldata.push([baseAddressList.vDaiContractAddress, tempData]);
 
@@ -727,13 +736,13 @@ const SupplyWithdraw = ({
 
   useEffect(() => {
     getTokenBalance();
-  }, [account]);
+  }, [address]);
 
   useEffect(() => {
     getTokenBalance();
     fetchParams();
     updateAmount("");
-  }, [account, selectedToken, currentNetwork, isSupply]);
+  }, [address, selectedToken, currentNetwork, isSupply]);
 
   const getPriceFromAssetsArray = async (tokenSymbol: string) => {
     const rsp = await axios.get("https://app.mux.network/api/liquidityAsset", {
@@ -780,9 +789,10 @@ const SupplyWithdraw = ({
   };
 
   const deposit = async () => {
-    if (!currentNetwork) return;
+    if (!currentNetwork || !address || !walletClient) return;
 
-    const signer = await library?.getSigner();
+    const provider = new ethers.providers.Web3Provider(walletClient as any);
+    const signer = provider.getSigner();
     setLoading(true);
 
     if (currentNetwork.id === ARBITRUM_NETWORK) {
@@ -813,7 +823,6 @@ const SupplyWithdraw = ({
       );
 
       try {
-        const signer = await library?.getSigner();
         // ERC20 contract
         const WBTCContract = new Contract(
           arbTokensAddress[selectedToken.name],
@@ -848,7 +857,7 @@ const SupplyWithdraw = ({
             // to confirm this abi, address & function
 
             const allowance = await WBTCContract.allowance(
-              account,
+              address,
               arbAddressList.vWBTCContractAddress
             );
 
@@ -860,14 +869,14 @@ const SupplyWithdraw = ({
               await sleep(3000);
             }
 
-            await vWbtcContract.deposit(parseEther(String(amount)), account, {
+            await vWbtcContract.deposit(parseEther(String(amount)), address, {
               gasLimit: 2300000,
             });
           } else if (selectedToken.name === "USDC") {
             // to confirm this abi, address & function
 
             const allowance = await USDCContract.allowance(
-              account,
+              address,
               arbAddressList.vUSDCContractAddress
             );
 
@@ -881,7 +890,7 @@ const SupplyWithdraw = ({
 
             await vUsdcContract.deposit(
               parseUnits(String(amount), 6),
-              account,
+              address,
               {
                 gasLimit: 23000000,
               }
@@ -890,7 +899,7 @@ const SupplyWithdraw = ({
             // to confirm this abi, address & function
 
             const allowance = await USDTContract.allowance(
-              account,
+              address,
               arbAddressList.vUSDTContractAddress
             );
 
@@ -904,14 +913,14 @@ const SupplyWithdraw = ({
 
             await vUsdtContract.deposit(
               parseUnits(String(amount), 6),
-              account,
+              address,
               {
                 gasLimit: 23000000,
               }
             );
           } else {
             const allowance = await DAIContract.allowance(
-              account,
+              address,
               arbAddressList.vDaiContractAddress
             );
 
@@ -923,7 +932,7 @@ const SupplyWithdraw = ({
               await sleep(3000);
             }
 
-            await vDaiContract.deposit(parseEther(String(amount)), account);
+            await vDaiContract.deposit(parseEther(String(amount)), address);
           }
         } else {
           if (selectedToken.name === "WETH") {
@@ -935,7 +944,7 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vEthcontract.balanceOf(account))
+              Number(amount) <= (await vEthcontract.balanceOf(address))
             ) {
               await vEthcontract.redeemEth(parseEther(String(amount)), {
                 gasLimit: 2300000,
@@ -950,12 +959,12 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vBTCcontract.balanceOf(account))
+              Number(amount) <= (await vBTCcontract.balanceOf(address))
             ) {
               await vBTCcontract.redeem(
                 parseEther(String(amount)),
-                account,
-                account,
+                address,
+                address,
                 {
                   gasLimit: 2300000,
                 }
@@ -970,12 +979,12 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vUSDCcontract.balanceOf(account))
+              Number(amount) <= (await vUSDCcontract.balanceOf(address))
             ) {
               await vUSDCcontract.redeem(
                 parseUnits(String(amount), 6),
-                account,
-                account,
+                address,
+                address,
                 {
                   gasLimit: 2300000,
                 }
@@ -990,12 +999,12 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vUSDTcontract.balanceOf(account))
+              Number(amount) <= (await vUSDTcontract.balanceOf(address))
             ) {
               await vUSDTcontract.redeem(
                 parseUnits(String(amount), 6),
-                account,
-                account,
+                address,
+                address,
                 {
                   gasLimit: 2300000,
                 }
@@ -1010,12 +1019,12 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vDaicontract.balanceOf(account))
+              Number(amount) <= (await vDaicontract.balanceOf(address))
             ) {
               await vDaicontract.redeem(
                 parseEther(String(amount)),
-                account,
-                account,
+                address,
+                address,
                 {
                   gasLimit: 2300000,
                 }
@@ -1039,7 +1048,6 @@ const SupplyWithdraw = ({
     } else if (currentNetwork.id === OPTIMISM_NETWORK) {
       // value assigne is pending
       try {
-        const signer = await library?.getSigner();
 
         const vEtherContract = new Contract(
           opAddressList.vEtherContractAddress,
@@ -1104,7 +1112,7 @@ const SupplyWithdraw = ({
             // to confirm this abi, address & function
 
             const allowance = await WBTCContract.allowance(
-              account,
+              address,
               opAddressList.vWBTCContractAddress
             );
 
@@ -1116,14 +1124,14 @@ const SupplyWithdraw = ({
               await sleep(3000);
             }
 
-            await vWbtcContract.deposit(parseEther(String(amount)), account, {
+            await vWbtcContract.deposit(parseEther(String(amount)), address, {
               gasLimit: 2300000,
             });
           } else if (selectedToken.name === "USDC") {
             // to confirm this abi, address & function
 
             const allowance = await USDCContract.allowance(
-              account,
+              address,
               opAddressList.vUSDCContractAddress
             );
 
@@ -1137,7 +1145,7 @@ const SupplyWithdraw = ({
 
             await vUsdcContract.deposit(
               parseUnits(String(amount), 6),
-              account,
+              address,
               {
                 gasLimit: 23000000,
               }
@@ -1146,7 +1154,7 @@ const SupplyWithdraw = ({
             // to confirm this abi, address & function
 
             const allowance = await USDTContract.allowance(
-              account,
+              address,
               opAddressList.vUSDTContractAddress
             );
 
@@ -1160,14 +1168,14 @@ const SupplyWithdraw = ({
 
             await vUsdtContract.deposit(
               parseUnits(String(amount), 6),
-              account,
+              address,
               {
                 gasLimit: 23000000,
               }
             );
           } else {
             const allowance = await DAIContract.allowance(
-              account,
+              address,
               opAddressList.vDaiContractAddress
             );
 
@@ -1179,7 +1187,7 @@ const SupplyWithdraw = ({
               await sleep(3000);
             }
 
-            await vDaiContract.deposit(parseEther(String(amount)), account);
+            await vDaiContract.deposit(parseEther(String(amount)), address);
           }
         } else {
           if (selectedToken.name === "WETH") {
@@ -1192,7 +1200,7 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vEthcontract.balanceOf(account))
+              Number(amount) <= (await vEthcontract.balanceOf(address))
             ) {
               await vEthcontract.redeemEth(parseEther(String(amount)), {
                 gasLimit: 2300000,
@@ -1207,12 +1215,12 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vBTCcontract.balanceOf(account))
+              Number(amount) <= (await vBTCcontract.balanceOf(address))
             ) {
               await vBTCcontract.redeem(
                 parseEther(String(amount)),
-                account,
-                account,
+                address,
+                address,
                 {
                   gasLimit: 2300000,
                 }
@@ -1227,12 +1235,12 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vUSDCcontract.balanceOf(account))
+              Number(amount) <= (await vUSDCcontract.balanceOf(address))
             ) {
               await vUSDCcontract.redeem(
                 parseUnits(String(amount), 6),
-                account,
-                account,
+                address,
+                address,
                 {
                   gasLimit: 2300000,
                 }
@@ -1247,12 +1255,12 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vUSDTcontract.balanceOf(account))
+              Number(amount) <= (await vUSDTcontract.balanceOf(address))
             ) {
               await vUSDTcontract.redeem(
                 parseUnits(String(amount), 6),
-                account,
-                account,
+                address,
+                address,
                 {
                   gasLimit: 2300000,
                 }
@@ -1267,12 +1275,12 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vDaicontract.balanceOf(account))
+              Number(amount) <= (await vDaicontract.balanceOf(address))
             ) {
               await vDaicontract.redeem(
                 parseEther(String(amount)),
-                account,
-                account,
+                address,
+                address,
                 {
                   gasLimit: 2300000,
                 }
@@ -1296,8 +1304,7 @@ const SupplyWithdraw = ({
     } else if (currentNetwork.id === BASE_NETWORK) {
       // value assigne is pending
       try {
-        const signer = await library?.getSigner();
-
+        
         const vEtherContract = new Contract(
           baseAddressList.vEtherContractAddress,
           VEther.abi,
@@ -1361,7 +1368,7 @@ const SupplyWithdraw = ({
             // to confirm this abi, address & function
 
             const allowance = await WBTCContract.allowance(
-              account,
+              address,
               baseAddressList.vWBTCContractAddress
             );
 
@@ -1373,14 +1380,14 @@ const SupplyWithdraw = ({
               await sleep(3000);
             }
 
-            await vWbtcContract.deposit(parseEther(String(amount)), account, {
+            await vWbtcContract.deposit(parseEther(String(amount)), address, {
               gasLimit: 2300000,
             });
           } else if (selectedToken.name === "USDC") {
             // to confirm this abi, address & function
 
             const allowance = await USDCContract.allowance(
-              account,
+              address,
               baseAddressList.vUSDCContractAddress
             );
 
@@ -1394,7 +1401,7 @@ const SupplyWithdraw = ({
 
             await vUsdcContract.deposit(
               parseUnits(String(amount), 6),
-              account,
+              address,
               {
                 gasLimit: 23000000,
               }
@@ -1403,7 +1410,7 @@ const SupplyWithdraw = ({
             // to confirm this abi, address & function
 
             const allowance = await USDTContract.allowance(
-              account,
+              address,
               baseAddressList.vUSDTContractAddress
             );
 
@@ -1417,14 +1424,14 @@ const SupplyWithdraw = ({
 
             await vUsdtContract.deposit(
               parseUnits(String(amount), 6),
-              account,
+              address,
               {
                 gasLimit: 23000000,
               }
             );
           } else {
             const allowance = await DAIContract.allowance(
-              account,
+              address,
               baseAddressList.vDaiContractAddress
             );
 
@@ -1436,7 +1443,7 @@ const SupplyWithdraw = ({
               await sleep(3000);
             }
 
-            await vDaiContract.deposit(parseEther(String(amount)), account);
+            await vDaiContract.deposit(parseEther(String(amount)), address);
           }
         } else {
           if (selectedToken.name === "WETH") {
@@ -1449,7 +1456,7 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vEthcontract.balanceOf(account))
+              Number(amount) <= (await vEthcontract.balanceOf(address))
             ) {
               await vEthcontract.redeemEth(parseEther(String(amount)), {
                 gasLimit: 2300000,
@@ -1464,12 +1471,12 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vBTCcontract.balanceOf(account))
+              Number(amount) <= (await vBTCcontract.balanceOf(address))
             ) {
               await vBTCcontract.redeem(
                 parseEther(String(amount)),
-                account,
-                account,
+                address,
+                address,
                 {
                   gasLimit: 2300000,
                 }
@@ -1484,12 +1491,12 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vUSDCcontract.balanceOf(account))
+              Number(amount) <= (await vUSDCcontract.balanceOf(address))
             ) {
               await vUSDCcontract.redeem(
                 parseUnits(String(amount), 6),
-                account,
-                account,
+                address,
+                address,
                 {
                   gasLimit: 2300000,
                 }
@@ -1504,12 +1511,12 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vUSDTcontract.balanceOf(account))
+              Number(amount) <= (await vUSDTcontract.balanceOf(address))
             ) {
               await vUSDTcontract.redeem(
                 parseUnits(String(amount), 6),
-                account,
-                account,
+                address,
+                address,
                 {
                   gasLimit: 2300000,
                 }
@@ -1524,12 +1531,12 @@ const SupplyWithdraw = ({
             if (
               amount &&
               amount !== "" &&
-              Number(amount) <= (await vDaicontract.balanceOf(account))
+              Number(amount) <= (await vDaicontract.balanceOf(address))
             ) {
               await vDaicontract.redeem(
                 parseEther(String(amount)),
-                account,
-                account,
+                address,
+                address,
                 {
                   gasLimit: 2300000,
                 }
@@ -1700,22 +1707,22 @@ const SupplyWithdraw = ({
           )}
         </div>
 
-        {!account && (
+        {!address && (
           <button className="w-full bg-neutral-500 text-white py-3 rounded-2xl font-semibold text-xl mb-6">
             Connect Wallet
           </button>
         )}
-        {account && loading && (
+        {address && loading && (
           <button className="w-full bg-purple py-3 rounded-2xl font-semibold text-xl mb-6 flex justify-center">
             <Loader />
           </button>
         )}
-        {account && !loading && disableBtn && (
+        {address && !loading && disableBtn && (
           <button className="w-full bg-neutral-500 text-white py-3 rounded-2xl font-semibold text-xl mb-6">
             {btnValue}
           </button>
         )}
-        {account && !loading && !disableBtn && (
+        {address && !loading && !disableBtn && (
           <button
             className="w-full bg-purple text-white py-3 rounded-2xl font-semibold text-xl mb-6"
             onClick={deposit}

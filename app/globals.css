@@ -1,3 +1,4 @@
+@import "@rainbow-me/rainbowkit/styles.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -57,7 +58,10 @@ body {
 }
 
 .gradient-text {
-  background: var(--Gradient-1, linear-gradient(91deg, #F5ABA1 0.04%, #703AE6 100.04%));
+  background: var(
+    --Gradient-1,
+    linear-gradient(91deg, #f5aba1 0.04%, #703ae6 100.04%)
+  );
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

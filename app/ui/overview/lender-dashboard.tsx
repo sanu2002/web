@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { utils, Contract } from "ethers";
+import { utils, Contract, ethers } from "ethers";
 import {
   arbAddressList,
   baseAddressList,
@@ -26,6 +26,7 @@ import { useWeb3React } from "@web3-react/core";
 import { formatUnits } from "ethers/lib/utils";
 import axios from "axios";
 import { formatUSD } from "@/app/lib/number-format-helper";
+import { useAccount, useWalletClient } from "wagmi";
 
 const Pool: React.FC<PoolPropsLenderDashboard> = ({
   number,
@@ -58,7 +59,8 @@ const Pool: React.FC<PoolPropsLenderDashboard> = ({
 );
 
 const LenderDashboard: React.FC = () => {
-  const { account, library } = useWeb3React();
+  const { address, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { currentNetwork } = useNetwork();
 
   const market = "ETH";
@@ -133,8 +135,22 @@ const LenderDashboard: React.FC = () => {
     return price;
   };
 
+  const createProvider = () => {
+    if (!currentNetwork || !address || !walletClient) return null;
+    return new ethers.providers.Web3Provider(walletClient as any);
+  };
+
+  const createSigner = () => {
+    if (!currentNetwork || !address || !walletClient) return null;
+    return new ethers.Wallet(address, walletClient as any);
+  };
+
   const fetchValues = async () => {
-    if (!currentNetwork || !account) return;
+    if (!currentNetwork || !address || !walletClient) return;
+    const provider = createProvider();
+    const signer = createSigner();
+    if (!provider || !signer) return;
+    
     const iFaceEth = new utils.Interface(VEther.abi);
     const iFaceToken = new utils.Interface(VToken.abi);
     let calldata = [];
@@ -145,36 +161,36 @@ const LenderDashboard: React.FC = () => {
       const MCcontract = new Contract(
         arbAddressList.multicallAddress,
         Multicall.abi,
-        library
+        signer
       );
 
       //ETH
       tempData = utils.arrayify(
-        iFaceEth.encodeFunctionData("balanceOf", [account])
+        iFaceEth.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([arbAddressList.vEtherContractAddress, tempData]);
 
       //WBTC
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([arbAddressList.vWBTCContractAddress, tempData]);
 
       //USDC
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([arbAddressList.vUSDCContractAddress, tempData]);
 
       //USDT
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([arbAddressList.vUSDTContractAddress, tempData]);
 
       //DAI
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([arbAddressList.vDaiContractAddress, tempData]);
 
@@ -338,31 +354,31 @@ const LenderDashboard: React.FC = () => {
 
       //ETH
       tempData = utils.arrayify(
-        iFaceEth.encodeFunctionData("balanceOf", [account])
+        iFaceEth.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([arbAddressList.vEtherContractAddress, tempData]);
 
       //WBTC
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([arbAddressList.vWBTCContractAddress, tempData]);
 
       //USDC
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([arbAddressList.vUSDCContractAddress, tempData]);
 
       //USDT
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([arbAddressList.vUSDTContractAddress, tempData]);
 
       //DAI
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([arbAddressList.vDaiContractAddress, tempData]);
 
@@ -522,35 +538,35 @@ const LenderDashboard: React.FC = () => {
       const MCcontract = new Contract(
         opAddressList.multicallAddress,
         Multicall.abi,
-        library
+        signer
       );
 
       //ETH
       tempData = utils.arrayify(
-        iFaceEth.encodeFunctionData("balanceOf", [account])
+        iFaceEth.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([opAddressList.vEtherContractAddress, tempData]);
 
       //WBTC
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([opAddressList.vWBTCContractAddress, tempData]);
 
       //USDC
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([opAddressList.vUSDCContractAddress, tempData]);
 
       //USDT
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([opAddressList.vUSDTContractAddress, tempData]);
       //DAI
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([opAddressList.vDaiContractAddress, tempData]);
 
@@ -607,18 +623,18 @@ const LenderDashboard: React.FC = () => {
       const vEtherContract = new Contract(
         opAddressList.vEtherContractAddress,
         VEther.abi,
-        library
+        signer
       );
       const vUsdcContract = new Contract(
         opAddressList.vUSDCContractAddress,
         VToken.abi,
-        library
+        signer
       );
 
-      const ethbal = await vEtherContract.balanceOf(account);
+      const ethbal = await vEtherContract.balanceOf(address);
       const ethusdcfetchBal =
         (await vEtherContract.convertToAssets(ethbal)) / 1;
-      const usdcbal = (await vUsdcContract.balanceOf(account)) / 1;
+      const usdcbal = (await vUsdcContract.balanceOf(address)) / 1;
       const UusdcfetchBal = (await vUsdcContract.convertToAssets(usdcbal)) / 1;
 
       // const ethusdcfetchBal = (await vEtherContract.convertToAssets(ethBal)/1e18);
@@ -741,31 +757,31 @@ const LenderDashboard: React.FC = () => {
 
       //ETH
       tempData = utils.arrayify(
-        iFaceEth.encodeFunctionData("balanceOf", [account])
+        iFaceEth.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([opAddressList.vEtherContractAddress, tempData]);
 
       //WBTC
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([opAddressList.vWBTCContractAddress, tempData]);
 
       //USDC
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([opAddressList.vUSDCContractAddress, tempData]);
 
       //USDT
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([opAddressList.vUSDTContractAddress, tempData]);
 
       //DAI
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([opAddressList.vDaiContractAddress, tempData]);
 
@@ -925,36 +941,36 @@ const LenderDashboard: React.FC = () => {
       const MCcontract = new Contract(
         baseAddressList.multicallAddress,
         Multicall.abi,
-        library
+        signer
       );
 
       //ETH
       tempData = utils.arrayify(
-        iFaceEth.encodeFunctionData("balanceOf", [account])
+        iFaceEth.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([baseAddressList.vEtherContractAddress, tempData]);
 
       //WBTC
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([baseAddressList.vWBTCContractAddress, tempData]);
 
       //USDC
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([baseAddressList.vUSDCContractAddress, tempData]);
 
       //USDT
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([baseAddressList.vUSDTContractAddress, tempData]);
 
       //DAI
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([baseAddressList.vDaiContractAddress, tempData]);
 
@@ -1118,31 +1134,31 @@ const LenderDashboard: React.FC = () => {
 
       //ETH
       tempData = utils.arrayify(
-        iFaceEth.encodeFunctionData("balanceOf", [account])
+        iFaceEth.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([baseAddressList.vEtherContractAddress, tempData]);
 
       //WBTC
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([baseAddressList.vWBTCContractAddress, tempData]);
 
       //USDC
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([baseAddressList.vUSDCContractAddress, tempData]);
 
       //USDT
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([baseAddressList.vUSDTContractAddress, tempData]);
 
       //DAI
       tempData = utils.arrayify(
-        iFaceToken.encodeFunctionData("balanceOf", [account])
+        iFaceToken.encodeFunctionData("balanceOf", [address])
       );
       calldata.push([baseAddressList.vDaiContractAddress, tempData]);
 
@@ -1308,7 +1324,7 @@ const LenderDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchValues();
-  }, [account, currentNetwork, assetsPrice]);
+  }, [address, currentNetwork, assetsPrice]);
 
   return (
     <div className="text-baseBlack dark:text-baseWhite">

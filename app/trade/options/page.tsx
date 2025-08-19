@@ -1,7 +1,7 @@
 "use client";
 
-// import { useNetwork } from "@/app/context/network-context";
-// import { ARBITRUM_NETWORK } from "@/app/lib/constants";
+import { useNetwork } from "@/app/context/network-context";
+import { ARBITRUM_NETWORK } from "@/app/lib/constants";
 import { generateDummyData } from "@/app/lib/helper";
 import FutureDropdown from "@/app/ui/future/future-dropdown";
 // import OptionSlider from "@/app/ui/options/option-slider";
@@ -9,7 +9,7 @@ import PositionsSection from "@/app/ui/options/positions-section";
 import { CaretDown, Plus, PlusSquare, X } from "@phosphor-icons/react";
 import { TrendDown, TrendUp } from "@phosphor-icons/react/dist/ssr";
 import axios from "axios";
-// import { useWeb3React } from "@web3-react/core";
+import { useAccount, useWalletClient } from "wagmi";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
@@ -27,8 +27,9 @@ type DateOption =
 type GreekOption = "Delta" | "Mark Price" | "Gamma" | "Vega" | "Theta";
 
 export default function Page() {
-  // const { account, library } = useWeb3React();
-  // const { currentNetwork } = useNetwork();
+  const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const { currentNetwork } = useNetwork();
 
   const pairOptions: Option[] = [
     { value: "ETH", label: "ETH/USD", icon: "/eth-icon.svg" },
@@ -221,11 +222,10 @@ export default function Page() {
                 <button
                   key={option}
                   onClick={() => handleOptionChange(option)}
-                  className={`px-4 py-2 rounded-md ${
-                    selectedOption === option
-                      ? "bg-purpleBG-lighter dark:bg-baseDarkComplementary border border-purple"
-                      : ""
-                  }`}
+                  className={`px-4 py-2 rounded-md ${selectedOption === option
+                    ? "bg-purpleBG-lighter dark:bg-baseDarkComplementary border border-purple"
+                    : ""
+                    }`}
                 >
                   {option}
                 </button>
@@ -242,11 +242,10 @@ export default function Page() {
                     className="sr-only"
                   />
                   <div
-                    className={`w-5 h-5 rounded mr-2 flex items-center justify-center ${
-                      selectedGreeks.includes(greek)
-                        ? "bg-purple"
-                        : "bg-white border border-baseBlack dark:border-baseWhite"
-                    }`}
+                    className={`w-5 h-5 rounded mr-2 flex items-center justify-center ${selectedGreeks.includes(greek)
+                      ? "bg-purple"
+                      : "bg-white border border-baseBlack dark:border-baseWhite"
+                      }`}
                   >
                     {selectedGreeks.includes(greek) && (
                       <svg
@@ -273,11 +272,10 @@ export default function Page() {
               <button
                 key={date}
                 onClick={() => handleDateChange(date)}
-                className={`px-2.5 xl:px-5 ml-2.5 sm:ml-0 mt-2.5 sm:mt-0 py-2.5 rounded-md ${
-                  selectedDate === date
-                    ? "bg-purpleBG-lighter dark:bg-baseDarkComplementary border border-purple"
-                    : "border border-neutral-300 dark:border-neutral-700"
-                }`}
+                className={`px-2.5 xl:px-5 ml-2.5 sm:ml-0 mt-2.5 sm:mt-0 py-2.5 rounded-md ${selectedDate === date
+                  ? "bg-purpleBG-lighter dark:bg-baseDarkComplementary border border-purple"
+                  : "border border-neutral-300 dark:border-neutral-700"
+                  }`}
               >
                 {date}
               </button>
