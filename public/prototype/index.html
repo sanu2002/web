@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vanna Device Compare</title>
+<style>
+:root{--bg:#0B0B0B;--panel:#111111;--card:#1E1E1E;--line:#2C2C2C;--text:#FFFFFF;--text2:#BFBFBF;--text3:#949494;--accent:#703AE6;--accentText:#BDA4F4;--bezel:#1A1A1A;--bezelLine:#333333}
+:root[data-theme="light"]{--bg:#F4F2F8;--panel:#FFFFFF;--card:#F0EDF6;--line:#E2DDEB;--text:#111111;--text2:#4A4A4A;--text3:#6E6E6E;--accentText:#5029A3;--bezel:#202020;--bezelLine:#3A3A3A}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:400 14px/20px 'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;overflow:hidden;display:flex;flex-direction:column}
+button,select,input{font:inherit;color:inherit}
+.bar{flex-shrink:0;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.brand{display:flex;flex-direction:column;margin-right:6px}
+.brand b{font-size:15px;line-height:20px;font-weight:600}
+.brand span{font-size:12px;line-height:16px;color:var(--text3)}
+.grp{display:flex;align-items:center;gap:6px}
+.grp label{font-size:12px;color:var(--text3)}
+.btn,select{height:34px;border-radius:17px;border:1px solid var(--line);background:transparent;padding:0 14px;font-size:13px;font-weight:600;cursor:pointer}
+select{padding:0 10px;max-width:260px;background:var(--panel)}
+.btn:hover,select:hover{background:var(--card)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#FFFFFF}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:17px;overflow:hidden}
+.seg button{height:32px;border:0;background:transparent;padding:0 12px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text2)}
+.seg button[aria-pressed="true"]{background:var(--text);color:var(--bg)}
+.tog{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;white-space:nowrap}
+.tog input{width:16px;height:16px;accent-color:#703AE6;margin:0}
+.spacer{flex:1}
+.devbar{flex-shrink:0;padding:8px 16px;display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--line);background:var(--panel)}
+.chip{height:30px;padding:0 12px;border-radius:15px;border:1px solid var(--line);background:transparent;color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip[aria-pressed="true"]{background:var(--text);border-color:var(--text);color:var(--bg)}
+.chip small{font-weight:400;opacity:.7}
+.stage{flex:1;overflow:auto;padding:20px 16px 32px}
+.grid{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;gap:28px 24px}
+.dev{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{text-align:center}
+.cap b{display:block;font-size:13px;line-height:18px;font-weight:600}
+.cap span{display:block;font-size:12px;line-height:16px;color:var(--text3)}
+.cls{display:inline-block;margin-top:4px;padding:1px 8px;border-radius:8px;font-size:11px;line-height:16px;font-weight:600;background:var(--card);color:var(--accentText)}
+.frame{position:relative;background:var(--bezel);border:1px solid var(--bezelLine);box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.vp{position:absolute;overflow:hidden;background:#111111}
+.vp iframe{position:absolute;left:0;top:0;border:0;transform-origin:0 0;background:#111111;display:block}
+.sys{position:absolute;left:0;right:0;pointer-events:none;z-index:2;transform-origin:0 0}
+.status{top:0;height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:600 12px/1 Roboto,system-ui,sans-serif;color:#FFFFFF;mix-blend-mode:difference}
+.status i{font-style:normal;letter-spacing:2px}
+.gesture{bottom:0;height:20px;display:flex;align-items:center;justify-content:center}
+.gesture span{width:108px;height:4px;border-radius:2px;background:#FFFFFF;mix-blend-mode:difference;opacity:.9}
+.cam{position:absolute;z-index:3;width:10px;height:10px;border-radius:5px;background:#000000;box-shadow:0 0 0 2px #222222;left:50%;margin-left:-5px}
+.empty{color:var(--text3);text-align:center;padding:60px 0}
+.foot{flex-shrink:0;padding:6px 16px;font-size:12px;color:var(--text3);border-top:1px solid var(--line);background:var(--panel);display:flex;gap:16px;flex-wrap:wrap}
+.foot kbd{font:600 11px ui-monospace,monospace;padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+@media (max-width:700px){.brand span{display:none}select{max-width:180px}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><b>Vanna v7 · Android devices</b><span>Every frame runs the live prototype at its real dp size</span></div>
+  <div class="grp"><label for="screenSel">Screen</label><select id="screenSel"></select></div>
+  <button class="btn" id="backAll" type="button" title="Back on every device (Backspace)">← Back</button>
+  <button class="btn" id="restartAll" type="button">Restart</button>
+  <div class="grp"><label>Theme</label><div class="seg" id="themeSeg"><button type="button" data-v="System">Auto</button><button type="button" data-v="Light">Light</button><button type="button" data-v="Dark">Dark</button></div></div>
+  <div class="grp"><label for="outSel">Next approval</label><select id="outSel"></select></div>
+  <div class="spacer"></div>
+  <div class="grp"><label>Zoom</label><div class="seg" id="zoomSeg"><button type="button" data-v="fit">Fit</button><button type="button" data-v="0.5">50%</button><button type="button" data-v="0.75">75%</button><button type="button" data-v="1">100%</button></div></div>
+  <label class="tog"><input type="checkbox" id="syncTog" checked> Sync taps</label>
+  <label class="tog"><input type="checkbox" id="barsTog" checked> System bars</label>
+</header>
+<div class="devbar" id="devbar" aria-label="Devices"></div>
+<main class="stage" id="stage"><div class="grid" id="grid"></div></main>
+<footer class="foot">
+  <span>Window size class: <b>Compact</b> &lt; 600dp · <b>Medium</b> 600–839dp · <b>Expanded</b> ≥ 840dp</span>
+  <span>Tap in any device and the others follow when Sync is on. Swipe in from a device's left edge to go back.</span>
+  <span><a href="vanna-v7.html" style="color:var(--accentText)">Open single-device prototype →</a></span>
+</footer>
+<script>
+(function () {
+'use strict';
+/* dp sizes (CSS px). type drives the bezel and status bar. */
+var DEVICES = [
+  { id: 'compact', name: 'Compact phone', note: 'older / budget Android', w: 360, h: 640, type: 'phone' },
+  { id: 'a15', name: 'Galaxy A15', note: 'most common Android width', w: 360, h: 800, type: 'phone' },
+  { id: 's24', name: 'Galaxy S24', note: '6.2"', w: 360, h: 780, type: 'phone' },
+  { id: 'pixel8', name: 'Pixel 8', note: 'design baseline', w: 412, h: 915, type: 'phone' },
+  { id: 'pixel8pro', name: 'Pixel 8 Pro', note: '6.7"', w: 448, h: 998, type: 'phone' },
+  { id: 'fold', name: 'Galaxy Z Fold (open)', note: 'foldable inner screen', w: 673, h: 841, type: 'fold' },
+  { id: 'tab', name: 'Galaxy Tab S9', note: 'tablet portrait', w: 800, h: 1280, type: 'tablet' },
+  { id: 'tabL', name: 'Galaxy Tab S9', note: 'tablet landscape', w: 1280, h: 800, type: 'tablet' }
+];
+var DEFAULT_ON = ['a15', 'pixel8', 'fold', 'tab'];
+var store = {
+  get: function (k, d) { try { var v = localStorage.getItem('vnCmp.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set: function (k, v) { try { localStorage.setItem('vnCmp.' + k, JSON.stringify(v)); } catch (e) {} }
+};
+var on = store.get('on', DEFAULT_ON), zoom = store.get('zoom', 'fit'), theme = store.get('theme', 'System');
+var stem = (location.hash || '').replace('#', '') || store.get('stem', 'V7Welcome');
+var frames = {}, meta = null;
+
+function sizeClass(w) { return w < 600 ? 'Compact' : w < 840 ? 'Medium' : 'Expanded'; }
+function $(id) { return document.getElementById(id); }
+
+/* device chips */
+var devbar = $('devbar');
+DEVICES.forEach(function (d) {
+  var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.dataset.id = d.id;
+  b.innerHTML = '<span></span><small></small>';
+  b.firstChild.textContent = d.name + (d.id === 'tabL' ? ' ⟲' : '');
+  b.lastChild.textContent = d.w + '×' + d.h;
+  b.addEventListener('click', function () {
+    var i = on.indexOf(d.id); if (i >= 0) on.splice(i, 1); else on.push(d.id);
+    store.set('on', on); build();
+  });
+  devbar.appendChild(b);
+});
+
+function frameSize(d) {
+  var bez = d.type === 'tablet' ? 18 : d.type === 'fold' ? 12 : 10;
+  return { bez: bez, W: d.w + bez * 2, H: d.h + bez * 2, r: d.type === 'tablet' ? 26 : d.type === 'fold' ? 20 : 34 };
+}
+function scale() {
+  if (zoom !== 'fit') return +zoom;
+  var list = DEVICES.filter(function (d) { return on.indexOf(d.id) >= 0; });
+  if (!list.length) return 1;
+  var avail = $('stage').clientHeight - 20 - 32 - 84;
+  var tallest = Math.max.apply(null, list.map(function (d) { return frameSize(d).H; }));
+  var totalW = list.reduce(function (a, d) { return a + frameSize(d).W; }, 0) + 24 * (list.length - 1);
+  var k = avail / tallest;
+  /* if everything fits on one row at a slightly smaller zoom, prefer that */
+  var rowK = ($('stage').clientWidth - 32) / totalW;
+  if (rowK < k && rowK > k * 0.8) k = rowK;
+  return Math.max(0.2, Math.min(1, k));
+}
+
+function build() {
+  devbar.querySelectorAll('.chip').forEach(function (b) { b.setAttribute('aria-pressed', on.indexOf(b.dataset.id) >= 0 ? 'true' : 'false'); });
+  var grid = $('grid'), k = scale(), keep = {};
+  DEVICES.forEach(function (d) {
+    if (on.indexOf(d.id) < 0) { if (frames[d.id]) { frames[d.id].el.remove(); delete frames[d.id]; } return; }
+    keep[d.id] = true;
+    var f = frames[d.id], fs = frameSize(d);
+    if (!f) {
+      var el = document.createElement('div'); el.className = 'dev';
+      el.innerHTML = '<div class="frame"><div class="vp"><iframe loading="eager"></iframe><div class="sys status"><span>9:41</span><i>▾ ▴ ▮</i></div><div class="sys gesture"><span></span></div></div><div class="cam"></div></div>' +
+        '<div class="cap"><b></b><span></span><em class="cls"></em></div>';
+      el.querySelector('.cap b').textContent = d.name;
+      el.querySelector('.cap span').textContent = d.w + ' × ' + d.h + ' dp · ' + d.note;
+      el.querySelector('.cls').textContent = sizeClass(d.w) + ' width';
+      var ifr = el.querySelector('iframe');
+      ifr.title = d.name + ' preview';
+      ifr.width = d.w; ifr.height = d.h;
+      ifr.src = 'vanna-v7.html?embed&frame=' + d.id + '#' + stem;
+      f = frames[d.id] = { el: el, d: d, ifr: ifr, ready: false };
+    }
+    var frame = f.el.querySelector('.frame'), vp = f.el.querySelector('.vp');
+    frame.style.width = fs.W * k + 'px'; frame.style.height = fs.H * k + 'px'; frame.style.borderRadius = fs.r * k + 'px';
+    vp.style.left = vp.style.top = fs.bez * k + 'px';
+    vp.style.width = d.w * k + 'px'; vp.style.height = d.h * k + 'px'; vp.style.borderRadius = Math.max(0, fs.r - fs.bez) * k + 'px';
+    f.ifr.style.transform = 'scale(' + k + ')';
+    f.el.querySelectorAll('.sys').forEach(function (s) { s.style.width = d.w + 'px'; s.style.transform = 'scale(' + k + ')'; s.style.display = $('barsTog').checked ? '' : 'none'; });
+    var g = f.el.querySelector('.gesture'); g.style.top = (d.h - 20) * k + 'px'; g.style.bottom = 'auto';
+    var cam = f.el.querySelector('.cam'); cam.style.top = (fs.bez * k + 7 * k) + 'px'; cam.style.display = d.type === 'phone' ? '' : 'none';
+    grid.appendChild(f.el);
+  });
+  if (!on.length) grid.innerHTML = '<div class="empty">Pick at least one device above.</div>';
+  else { var e = grid.querySelector('.empty'); if (e) e.remove(); }
+}
+
+/* talk to the prototypes */
+function each(fn, except) { Object.keys(frames).forEach(function (id) { if (id === except) return; var w = frames[id].ifr.contentWindow; if (w && w.__vn) { try { fn(w.__vn, id); } catch (e) { console.error(e); } } }); }
+function goAll(s, except) { stem = s; store.set('stem', s); syncSel(); each(function (vn) { vn.go(s, { quiet: true }); }, except); try { history.replaceState(null, '', '#' + s); } catch (e) {} }
+addEventListener('message', function (e) {
+  var m = e.data; if (!m || !m.vn) return;
+  var f = frames[m.frame];
+  if (m.vn === 'ready' && f) {
+    f.ready = true;
+    var vn = f.ifr.contentWindow.__vn;
+    if (!meta) { meta = vn; fillMenus(); }
+    vn.setMode(theme); vn.setOutcome($('outSel').value || 'ok');
+    if (m.stem !== stem) vn.go(stem, { quiet: true, push: false, anim: false });
+  }
+  if (m.vn === 'nav') {
+    if ($('syncTog').checked) goAll(m.stem, m.frame); else { stem = m.stem; syncSel(); }
+  }
+});
+
+function fillMenus() {
+  var sel = $('screenSel'); sel.innerHTML = '';
+  meta.rows.forEach(function (r) {
+    var og = document.createElement('optgroup'); og.label = r[0].split(':')[0];
+    r[1].forEach(function (it) { var o = document.createElement('option'); o.value = it[0]; o.textContent = it[1]; og.appendChild(o); });
+    sel.appendChild(og);
+  });
+  var out = $('outSel'); out.innerHTML = '';
+  meta.outcomes.forEach(function (o) { var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; out.appendChild(op); });
+  syncSel();
+}
+function syncSel() { var sel = $('screenSel'); if ([].some.call(sel.options, function (o) { return o.value === stem; })) sel.value = stem; }
+$('screenSel').addEventListener('change', function () { goAll(this.value); });
+$('outSel').addEventListener('change', function () { var v = this.value; each(function (vn) { vn.setOutcome(v); }); });
+$('backAll').addEventListener('click', function () { each(function (vn) { vn.back(); }); var f = frames[on[0]]; if (f && f.ifr.contentWindow.__vn) { stem = f.ifr.contentWindow.__vn.app().shown; syncSel(); } });
+$('restartAll').addEventListener('click', function () { stem = 'V7Welcome'; store.set('stem', stem); each(function (vn) { vn.restart(); vn.setMode(theme); }); syncSel(); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Backspace' && !/input|select|textarea/i.test(e.target.tagName)) { e.preventDefault(); $('backAll').click(); } });
+
+function seg(id, val, cb) {
+  var box = $(id);
+  function paint() { box.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.v === String(val) ? 'true' : 'false'); }); }
+  box.addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; val = b.dataset.v; paint(); cb(val); });
+  paint();
+}
+function applyPageTheme() {
+  var dark = theme === 'Dark' || (theme === 'System' && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+}
+seg('themeSeg', theme, function (v) { theme = v; store.set('theme', v); applyPageTheme(); each(function (vn) { vn.setMode(v); }); });
+seg('zoomSeg', zoom, function (v) { zoom = v; store.set('zoom', v); build(); });
+$('barsTog').addEventListener('change', build);
+addEventListener('resize', function () { if (zoom === 'fit') build(); });
+applyPageTheme();
+build();
+})();
+</script>
+</body>
+</html>

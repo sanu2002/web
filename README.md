@@ -38,3 +38,23 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ## Notes
 
 - app/lib/definitions.ts contains interfaces
+
+## Mobile prototype (Vanna v7)
+
+A self-contained click-through of the v7 mobile app lives in `public/prototype/`.
+
+```bash
+npm run prototype        # no install needed
+```
+
+- `http://localhost:4173/` compares Android devices side by side: Compact 360×640, Galaxy A15, Galaxy S24, Pixel 8, Pixel 8 Pro, Z Fold (open), and Galaxy Tab S9 in portrait and landscape. Every frame runs the live prototype at its real dp size, with an Android status bar and gesture bar. Taps sync across devices, and theme, approval outcome and zoom apply to every frame.
+- `http://localhost:4173/vanna-v7.html` is the single-device prototype, with a device picker in the side panel.
+
+The prototype is also served by the Next app at `/prototype/` (the access middleware skips that path).
+
+What was added on top of the exported prototype:
+- Screens size to the device instead of a fixed 412×915.
+- At 600dp and wider (foldables and tablets), content sits in a centred column, the bottom nav and docked CTAs line up with it, and bottom sheets become floating dialogs.
+- Android back works three ways: swipe in from the left edge, the browser or hardware back button, or Esc/Backspace.
+- Taps show pressed feedback. Small links and chips get at least a 44dp touch area. Sheets never run past the top of short screens.
+- Toasts sit above the bottom nav, like an Android snackbar, instead of covering the status bar.

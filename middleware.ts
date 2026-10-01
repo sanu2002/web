@@ -8,6 +8,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Static mobile prototype and its device-compare page
+  if (request.nextUrl.pathname.startsWith('/prototype')) {
+    return NextResponse.next();
+  }
+
   const authToken = request.cookies.get("authToken")?.value || "";
 
   if (

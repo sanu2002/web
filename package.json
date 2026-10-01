@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prototype": "node scripts/serve-prototype.mjs"
   },
   "dependencies": {
     "@ethersproject/providers": "^5.7.2",
